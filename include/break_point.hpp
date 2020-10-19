@@ -1,22 +1,39 @@
 #include "code_stream.hpp"
+#include "parse_error.hpp"
 
 class BreakPoint {
 public:
     BreakPoint(CodeStream& stream) : m_stream(stream) {
-        m_point = m_stream.m_file.tellg();
-        m_place = m_stream.m_place;
+        m_index = m_stream.index();
     }
-    ~BreakPoint() {
-        if (!closed) {
-            m_stream.m_file.clear();
-            m_stream.m_file.seekg(m_point);
-            m_stream.m_place = m_place;
+
+    void close() { state = CLOSED; }
+
+    void error(ParseError& err) {
+        if (err.is_undroppable()) {
+            state = CLOSED;
+        } else if (!m_stream.can_move_to(m_index)) {
+            state = CLOSED;
+            err.set_undroppable();
+        } else {
+            state = OPEN;
         }
     }
-    void close() { closed = true; }
+
+    ~BreakPoint() {
+        if (state == OPEN) {
+            m_stream.move_to(m_index);
+        } else if (state == INVALID) {
+            fmt::print("Bad usage of breakpoint!\n");
+            std::terminate();
+        }
+    }
 private:
-    bool closed = false;
+    enum {
+        INVALID,
+        CLOSED,
+        OPEN,
+    } state = INVALID;
     CodeStream& m_stream;
-    std::fstream::pos_type m_point;
-    CodePlace m_place;
+    size_t m_index;
 };

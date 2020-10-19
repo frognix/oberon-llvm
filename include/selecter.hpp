@@ -38,7 +38,7 @@ struct sel {
 
     template <class Type, class... Types>
     requires (Cur != Idx)
-    constexpr auto _select(Type arg, Types... args) {
+    constexpr auto _select([[gnu::unused]] Type arg, Types... args) {
         return sel<Cur+1, Idx, Is...>()._select(args...);
     }
     template <class Type, class... Types>

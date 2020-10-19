@@ -1,23 +1,22 @@
 #pragma once
 
-#include <fmt/format.h>
-#include <fmt/ranges.h>
 #include <memory>
 #include <set>
 #include <algorithm>
 
+#include "format.hpp"
 #include "code_stream.hpp"
 
 struct ParseError {
     ParseError(const CodeStream& stream)
-        : place(stream.place()), file(stream.get_filename()) {}
+        : place(stream.place()) {}
     template <class T>
     ParseError(std::string e, T f, const CodeStream& stream)
         : expected({e}), found(fmt::format("{}", f)),
-          place(stream.place()), file(stream.get_filename()) {}
+          place(stream.place()) {}
     std::string to_string() const {
-        auto str = fmt::format("{}:{}:{} Expected {}, found {}",
-                               file, place.line, place.column,
+        auto str = fmt::format("{} Expected ( {} ), found {}",
+                               format_red(fmt::format("{}:{}:{}:", place.file, place.line, place.column)),
                                fmt::join(expected, " or "), found);
         std::string result;
         for (auto elem : str) {
@@ -36,8 +35,12 @@ struct ParseError {
         result.place = other.place;
         return result;
     }
+    void set_undroppable() { undroppable = true; }
+    bool is_undroppable() const { return undroppable; }
+
     std::set<std::string> expected;
     std::string found;
     CodePlace place;
-    std::string file;
+private:
+    bool undroppable = false;
 };

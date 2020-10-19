@@ -1,5 +1,7 @@
 build
+release
 compile_commands.json
 data.txt
 .clangd
 .gdb_history
+examples

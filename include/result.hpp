@@ -27,6 +27,12 @@ public:
     ErrType get_err() const {
         return std::get<ErrType>(data);
     }
+    OkType& ok_ref() {
+        return *std::get_if<OkType>(&data);
+    }
+    ErrType& err_ref() {
+        return *std::get_if<ErrType>(&data);
+    }
 private:
     std::variant<OkType, ErrType> data;
 };

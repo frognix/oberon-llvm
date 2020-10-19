@@ -1,3 +1,5 @@
+#pragma once
+
 #include "code_stream.hpp"
 #include "parse_error.hpp"
 #include "result.hpp"
@@ -10,8 +12,8 @@ class Parser {
 public:
     using ResultType = T;
     using PResult = ParseResult<T>;
-    virtual PResult parse(CodeStream& stream) = 0;
-    inline PResult operator()(CodeStream& stream) {
+    virtual PResult parse(CodeStream& stream) const noexcept = 0;
+    inline PResult operator()(CodeStream& stream) const noexcept {
         return parse(stream);
     }
     virtual ~Parser() {}

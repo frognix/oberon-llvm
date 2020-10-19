@@ -4,73 +4,61 @@
 #include <fstream>
 #include <fmt/format.h>
 
-class Range {
-public:
-    Range(size_t begin, size_t end) : m_start(begin), m_size(end-begin) {
-        if (end < begin) throw std::runtime_error("Range start must me less or equal to end");
-    }
-    size_t begin() const { return m_start; }
-    size_t end() const { return m_start + m_size; }
-    size_t size() const { return m_size; }
-    Range operator + (const Range& other) {
-        if (other.begin() != end()) throw std::runtime_error("For operator + end of first range must be start of second");
-        return Range(m_start, other.end());
-    }
-private:
-    size_t m_start;
-    size_t m_size;
-};
-
 struct CodePlace {
     CodePlace() : line(0), column(0) {}
     CodePlace(size_t l, size_t c) : line(l), column(c) {}
     void new_line() { line++; column = 0; }
+    std::string file;
     size_t line;
     size_t column;
+};
+
+template<>
+struct fmt::formatter<CodePlace> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(CodePlace const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}:{}", id.line, id.column);
+  }
 };
 
 class CodeStream {
     friend class BreakPoint;
 public:
-    CodeStream(std::string filename) : m_file(filename), m_filename(filename) {}
-    bool is_open() const { return m_file.is_open(); }
-    std::string_view get_filename() const { return m_filename; }
-    CodePlace place() const { return m_place; }
-    std::optional<char> get() {
-        auto val = m_file.get();
-        if (val == '\0' || val == -1) return {};
-        if (val == '\n') {
-            m_place.new_line();
-        } else {
-            m_place.column++;
-        }
+    CodeStream(std::string filename) noexcept
+        : m_data(), m_index(0), m_no_return_point(0),
+          m_data_structure(), m_filename(filename) {}
 
-        return val;
+    bool is_open() const noexcept { return m_data.size() != 0; }
+    std::string_view get_filename() const noexcept { return m_filename; }
+    CodePlace place() const noexcept { return index_to_place(m_index); }
+    size_t index() const noexcept { return m_index; }
+    bool can_move_to(size_t index) noexcept {
+        return index >= m_no_return_point;
     }
-    std::optional<std::string> peek(Range range) {
-        auto last_place = m_file.tellg();
-        m_file.seekg(range.begin());
-        std::string result;
-        result.resize(range.size());
-        m_file.read(result.data(), range.size());
-        m_file.seekg(last_place);
-        if (m_file.gcount() != range.size()) return {};
-        else return result;
+    void move_to(size_t index) noexcept {
+        if (index < m_no_return_point) {
+            fmt::print("Trying to return before no_return_point? No way!\n");
+            std::terminate();
+        }
+        m_index = index;
     }
-    std::optional<std::string> get(size_t size) {
-        std::string result;
-        result.resize(size);
-        m_file.read(result.data(), size);
-        if (m_file.gcount() != size) return {};
-        else return result;
-    }
-    std::optional<char> peek() {
-        auto val = m_file.peek();
-        if (val == '\0' || val == -1) return {};
-        else return val;
-    }
+    void set_no_return_point() { m_no_return_point = m_index; }
+    size_t line_length(size_t num) { return m_data_structure[num]; }
+
+    bool open() noexcept;
+    std::optional<char> get() noexcept;
+    std::optional<std::string> get(size_t size) noexcept;
+    std::optional<char> peek() const noexcept;
+    std::string_view get_line(size_t num) const noexcept;
 private:
-    std::ifstream m_file;
+    CodePlace index_to_place(size_t index) const noexcept;
+    size_t place_to_index(CodePlace place) const noexcept;
+
+    std::string m_data;
+    size_t m_index;
+    size_t m_no_return_point;
+    std::vector<size_t> m_data_structure;
     std::string m_filename;
-    CodePlace m_place;
 };
