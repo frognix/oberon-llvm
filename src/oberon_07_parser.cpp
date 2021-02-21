@@ -2,6 +2,8 @@
 
 #include "parsers.hpp"
 
+namespace oberon07parser {
+
 std::vector<char> str_to_vec(std::string_view str) {
     std::vector<char> vec;
     vec.insert(vec.end(), str.begin(), str.end());
@@ -191,7 +193,7 @@ ParserPtr<std::vector<T>> maybe_list(ParserPtr<std::vector<T>> parser) {
     });
 }
 
-ParserPtr<Module> oberon_07_parser() {
+ParserPtr<Module> get_parser() {
 
     ParserPtr<TypePtr> type;
     ParserPtr<ExpressionPtr> expression;
@@ -447,4 +449,6 @@ ParserPtr<Module> oberon_07_parser() {
     }));
 
     return module;
+}
+
 }

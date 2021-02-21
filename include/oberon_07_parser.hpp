@@ -8,6 +8,8 @@
 
 #include "parser.hpp"
 
+namespace oberon07parser {
+
 std::vector<char> str_to_vec(std::string_view str);
 
 const std::vector<std::vector<char>> keywords = []() {
@@ -33,13 +35,13 @@ const std::vector<std::vector<char>> keywords = []() {
                                        "MODULE",
                                        "TRUE",
                                        "ELSE",
-                                       "NIL"
+                                       "NIL",
                                        "TYPE",
                                        "ELSIF",
-                                       "OF"
+                                       "OF",
                                        "UNTIL",
                                        "END",
-                                       "OR"
+                                       "OR",
                                        "VAR",
                                        "FALSE",
                                        "POINTER",
@@ -49,19 +51,6 @@ const std::vector<std::vector<char>> keywords = []() {
                  [](auto s) { return str_to_vec(s); });
   return result;
 }();
-
-template<>
-struct fmt::formatter<std::vector<char>> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-      return ctx.begin();
-  }
-
-  template<typename FormatContext>
-  auto format(std::vector<char> const& vec, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}", fmt::join(vec, ""));
-  }
-};
 
 using Real = double;
 using Integer = int;
@@ -86,57 +75,17 @@ struct Type : Node {};
 
 using TypePtr = OPtr<Type>;
 
-template<>
-struct fmt::formatter<TypePtr> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(TypePtr const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}", id->to_string());
-  }
-};
-
 struct Expression : Node {};
 
 using ExpressionPtr = OPtr<Expression>;
-
-template<>
-struct fmt::formatter<ExpressionPtr> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(ExpressionPtr const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}", id->to_string());
-  }
-};
 
 struct Statement : Node {};
 
 using StatementPtr = OPtr<Statement>;
 
-template<>
-struct fmt::formatter<StatementPtr> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(StatementPtr const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}", id->to_string());
-  }
-};
-
 struct CodeBlock : Node {};
 
 using CodeBlockPtr = OPtr<CodeBlock>;
-
-template<>
-struct fmt::formatter<CodeBlockPtr> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(CodeBlockPtr const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}", id->to_string());
-  }
-};
 
 struct Number : Expression {
     const std::type_info& type_info() const { return typeid(*this); }
@@ -182,17 +131,6 @@ struct SetElement {
     std::optional<ExpressionPtr> second;
 };
 
-template<>
-struct fmt::formatter<SetElement> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(SetElement const& id, FormatContext& ctx) {
-      if (id.second) return fmt::format_to(ctx.out(), "{}..{}", id.first, *id.second);
-      else return fmt::format_to(ctx.out(), "{}", id.first);
-  }
-};
-
 struct Set : Expression {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
@@ -213,44 +151,12 @@ struct QualIdent {
     Ident ident;
 };
 
-template<>
-struct fmt::formatter<QualIdent> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(QualIdent const& id, FormatContext& ctx) {
-      if (id.qual) return fmt::format_to(ctx.out(), "{}.{}", *id.qual, id.ident);
-      else return fmt::format_to(ctx.out(), "{}", id.ident);
-  }
-};
-
 struct IdentDef {
     Ident ident;
     bool def;
 };
 
-template<>
-struct fmt::formatter<IdentDef> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(IdentDef const& id, FormatContext& ctx) {
-      if (id.def) return fmt::format_to(ctx.out(), "{}*", id.ident);
-      else return fmt::format_to(ctx.out(), "{}", id.ident);
-  }
-};
-
 using IdentList = std::vector<IdentDef>;
-
-template<>
-struct fmt::formatter<IdentList> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(IdentList const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}", fmt::join(id, ", "));
-  }
-};
 
 struct TypeName : Type {
     const std::type_info& type_info() const { return typeid(*this); }
@@ -266,27 +172,7 @@ struct FieldList {
     TypePtr type;
 };
 
-template<>
-struct fmt::formatter<FieldList> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(FieldList const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{} : {}", id.list, id.type);
-  }
-};
-
 using FieldListSequence = std::vector<FieldList>;
-
-template<>
-struct fmt::formatter<FieldListSequence> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(FieldListSequence const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}", fmt::join(id, "; "));
-  }
-};
 
 struct RecordType : Type {
     const std::type_info& type_info() const { return typeid(*this); }
@@ -324,37 +210,9 @@ using ExpList = std::vector<ExpressionPtr>;
 
 using Selector = std::variant<Ident, ExpList, char, QualIdent>;
 
-template<>
-struct fmt::formatter<Selector> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(Selector const& id, FormatContext& ctx) {
-      if (auto sel = std::get_if<Ident>(&id); sel) {
-          return fmt::format_to(ctx.out(), ".{}", *sel);
-      } else if (auto sel = std::get_if<ExpList>(&id); sel) {
-          return fmt::format_to(ctx.out(), "[{}]", fmt::join(*sel, ", "));
-      } else if (auto sel = std::get_if<char>(&id); sel) {
-          return fmt::format_to(ctx.out(), "{}", *sel);
-      } else if (auto sel = std::get_if<QualIdent>(&id); sel) {
-          return fmt::format_to(ctx.out(), "({})", *sel);
-      } else throw std::runtime_error("Bad variant");
-  }
-};
-
 struct Designator {
     QualIdent ident;
     std::vector<Selector> selector;
-};
-
-template<>
-struct fmt::formatter<Designator> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(Designator const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}{}", id.ident, fmt::join(id.selector, ""));
-  }
 };
 
 struct ProcCall : Expression, Statement {
@@ -382,29 +240,9 @@ struct ConstDecl {
     ExpressionPtr expression;
 };
 
-template<>
-struct fmt::formatter<ConstDecl> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(ConstDecl const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{} = {}", id.ident, id.expression);
-  }
-};
-
 struct TypeDecl {
     IdentDef ident;
     TypePtr type;
-};
-
-template<>
-struct fmt::formatter<TypeDecl> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(TypeDecl const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{} = {}", id.ident, id.type);
-  }
 };
 
 struct Operator {
@@ -457,28 +295,7 @@ struct Assignment : Statement {
 
 using StatementSequence = std::vector<StatementPtr>;
 
-template<>
-struct fmt::formatter<StatementSequence> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(StatementSequence const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}", fmt::join(id, ";\n"));
-  }
-};
-
 using IfBlock = std::tuple<ExpressionPtr, StatementSequence>;
-
-template<>
-struct fmt::formatter<IfBlock> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(IfBlock const& id, FormatContext& ctx) {
-      auto [cond, block] = id;
-      return fmt::format_to(ctx.out(), "ELSIF {} THEN\n{}\n", cond, block);
-  }
-};
 
 struct IfStatement : Statement {
     const std::type_info& type_info() const { return typeid(*this); }
@@ -500,41 +317,9 @@ struct CaseLabel {
     std::optional<ExpressionPtr> second;
 };
 
-template<>
-struct fmt::formatter<CaseLabel> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(CaseLabel const& id, FormatContext& ctx) {
-      if (id.second) return fmt::format_to(ctx.out(), "{}..{}", id.first, *id.second);
-      return fmt::format_to(ctx.out(), "{}", id.first);
-  }
-};
-
 using CaseLabelList = std::vector<CaseLabel>;
 
-template<>
-struct fmt::formatter<CaseLabelList> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(CaseLabelList const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}", fmt::join(id, ", "));
-  }
-};
-
 using Case = std::tuple<CaseLabelList, StatementSequence>;
-
-template<>
-struct fmt::formatter<Case> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(Case const& id, FormatContext& ctx) {
-      auto [label, state] = id;
-      return fmt::format_to(ctx.out(), "{} : {}", label, state);
-  }
-};
 
 struct CaseStatement : Statement {
     const std::type_info& type_info() const { return typeid(*this); }
@@ -593,39 +378,9 @@ struct DeclarationSequence {
     std::vector<CodeBlockPtr> procedureDecls;
 };
 
-template<>
-struct fmt::formatter<DeclarationSequence> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(DeclarationSequence const& id, FormatContext& ctx) {
-      std::string constDecl, typeDecl, variableDecl, procDecl;
-      if (!id.constDecls.empty())
-          constDecl = fmt::format("CONST {};\n", fmt::join(id.constDecls, ";\n"));
-      if (!id.typeDecls.empty())
-          typeDecl = fmt::format("TYPE {};\n", fmt::join(id.typeDecls, ";\n"));
-      if (!id.variableDecls.empty())
-          variableDecl = fmt::format("VAR {};\n", fmt::join(id.variableDecls, ";\n"));
-      if (!id.procedureDecls.empty())
-          procDecl = fmt::format("{};\n", fmt::join(id.procedureDecls, ";\n"));
-      return fmt::format_to(ctx.out(), "{}{}{}{}", constDecl, typeDecl, variableDecl, procDecl);
-  }
-};
-
 struct FormalType {
     bool array;
     QualIdent ident;
-};
-
-template<>
-struct fmt::formatter<FormalType> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(FormalType const& id, FormatContext& ctx) {
-      if (id.array) return fmt::format_to(ctx.out(), "ARRAY OF {}", id.ident);
-      else return fmt::format_to(ctx.out(), "{}", id.ident);
-  }
 };
 
 struct FPSection {
@@ -634,31 +389,9 @@ struct FPSection {
     FormalType type;
 };
 
-template<>
-struct fmt::formatter<FPSection> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(FPSection const& id, FormatContext& ctx) {
-      if (id.var) return fmt::format_to(ctx.out(), "{} {} : {}", *id.var, fmt::join(id.idents, ", "), id.type);
-      else return fmt::format_to(ctx.out(), "{} : {}", fmt::join(id.idents, ", "), id.type);
-  }
-};
-
 struct FormalParameters {
     std::vector<FPSection> sections;
     std::optional<QualIdent> rettype;
-};
-
-template<>
-struct fmt::formatter<FormalParameters> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(FormalParameters const& id, FormatContext& ctx) {
-      if (id.rettype) return fmt::format_to(ctx.out(), "({}) : {}", fmt::join(id.sections, "; "), *id.rettype);
-      else return fmt::format_to(ctx.out(), "({})", fmt::join(id.sections, "; "));
-  }
 };
 
 struct ProcedureType : Type {
@@ -709,17 +442,6 @@ struct Import {
     Ident real_name;
 };
 
-template<>
-struct fmt::formatter<Import> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(Import const& id, FormatContext& ctx) {
-      if (id.real_name == id.name) return fmt::format_to(ctx.out(), "{}", id.name);
-      else return fmt::format_to(ctx.out(), "{} := {}", id.name, id.real_name);
-  }
-};
-
 using ImportList = std::vector<Import>;
 
 struct Module : CodeBlock {
@@ -736,4 +458,286 @@ struct Module : CodeBlock {
     StatementSequence body;
 };
 
-ParserPtr<Module> oberon_07_parser();
+ParserPtr<Module> get_parser();
+
+} // namespace oberon07parser
+
+template<>
+struct fmt::formatter<std::vector<char>> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+      return ctx.begin();
+  }
+
+  template<typename FormatContext>
+  auto format(std::vector<char> const& vec, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}", fmt::join(vec, ""));
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::TypePtr> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::TypePtr const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}", id->to_string());
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::ExpressionPtr> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::ExpressionPtr const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}", id->to_string());
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::StatementPtr> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::StatementPtr const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}", id->to_string());
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::CodeBlockPtr> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::CodeBlockPtr const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}", id->to_string());
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::SetElement> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::SetElement const& id, FormatContext& ctx) {
+      if (id.second) return fmt::format_to(ctx.out(), "{}..{}", id.first, *id.second);
+      else return fmt::format_to(ctx.out(), "{}", id.first);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::QualIdent> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::QualIdent const& id, FormatContext& ctx) {
+      if (id.qual) return fmt::format_to(ctx.out(), "{}.{}", *id.qual, id.ident);
+      else return fmt::format_to(ctx.out(), "{}", id.ident);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::IdentDef> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::IdentDef const& id, FormatContext& ctx) {
+      if (id.def) return fmt::format_to(ctx.out(), "{}*", id.ident);
+      else return fmt::format_to(ctx.out(), "{}", id.ident);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::IdentList> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::IdentList const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}", fmt::join(id, ", "));
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::FieldList> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::FieldList const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{} : {}", id.list, id.type);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::FieldListSequence> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::FieldListSequence const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}", fmt::join(id, "; "));
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::Selector> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::Selector const& id, FormatContext& ctx) {
+      if (auto sel = std::get_if<oberon07parser::Ident>(&id); sel) {
+          return fmt::format_to(ctx.out(), ".{}", *sel);
+      } else if (auto sel = std::get_if<oberon07parser::ExpList>(&id); sel) {
+          return fmt::format_to(ctx.out(), "[{}]", fmt::join(*sel, ", "));
+      } else if (auto sel = std::get_if<char>(&id); sel) {
+          return fmt::format_to(ctx.out(), "{}", *sel);
+      } else if (auto sel = std::get_if<oberon07parser::QualIdent>(&id); sel) {
+          return fmt::format_to(ctx.out(), "({})", *sel);
+      } else throw std::runtime_error("Bad variant");
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::Designator> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::Designator const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}{}", id.ident, fmt::join(id.selector, ""));
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::ConstDecl> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::ConstDecl const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{} = {}", id.ident, id.expression);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::TypeDecl> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::TypeDecl const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{} = {}", id.ident, id.type);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::StatementSequence> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::StatementSequence const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}", fmt::join(id, ";\n"));
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::IfBlock> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::IfBlock const& id, FormatContext& ctx) {
+      auto [cond, block] = id;
+      return fmt::format_to(ctx.out(), "ELSIF {} THEN\n{}\n", cond, block);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::CaseLabel> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::CaseLabel const& id, FormatContext& ctx) {
+      if (id.second) return fmt::format_to(ctx.out(), "{}..{}", id.first, *id.second);
+      return fmt::format_to(ctx.out(), "{}", id.first);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::CaseLabelList> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::CaseLabelList const& id, FormatContext& ctx) {
+      return fmt::format_to(ctx.out(), "{}", fmt::join(id, ", "));
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::Case> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::Case const& id, FormatContext& ctx) {
+      auto [label, state] = id;
+      return fmt::format_to(ctx.out(), "{} : {}", label, state);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::DeclarationSequence> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::DeclarationSequence const& id, FormatContext& ctx) {
+      std::string constDecl, typeDecl, variableDecl, procDecl;
+      if (!id.constDecls.empty())
+          constDecl = fmt::format("CONST {};\n", fmt::join(id.constDecls, ";\n"));
+      if (!id.typeDecls.empty())
+          typeDecl = fmt::format("TYPE {};\n", fmt::join(id.typeDecls, ";\n"));
+      if (!id.variableDecls.empty())
+          variableDecl = fmt::format("VAR {};\n", fmt::join(id.variableDecls, ";\n"));
+      if (!id.procedureDecls.empty())
+          procDecl = fmt::format("{};\n", fmt::join(id.procedureDecls, ";\n"));
+      return fmt::format_to(ctx.out(), "{}{}{}{}", constDecl, typeDecl, variableDecl, procDecl);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::FormalType> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::FormalType const& id, FormatContext& ctx) {
+      if (id.array) return fmt::format_to(ctx.out(), "ARRAY OF {}", id.ident);
+      else return fmt::format_to(ctx.out(), "{}", id.ident);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::FPSection> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::FPSection const& id, FormatContext& ctx) {
+      if (id.var) return fmt::format_to(ctx.out(), "{} {} : {}", *id.var, fmt::join(id.idents, ", "), id.type);
+      else return fmt::format_to(ctx.out(), "{} : {}", fmt::join(id.idents, ", "), id.type);
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::FormalParameters> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::FormalParameters const& id, FormatContext& ctx) {
+      if (id.rettype) return fmt::format_to(ctx.out(), "({}) : {}", fmt::join(id.sections, "; "), *id.rettype);
+      else return fmt::format_to(ctx.out(), "({})", fmt::join(id.sections, "; "));
+  }
+};
+
+template<>
+struct fmt::formatter<oberon07parser::Import> {
+  template<typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(oberon07parser::Import const& id, FormatContext& ctx) {
+      if (id.real_name == id.name) return fmt::format_to(ctx.out(), "{}", id.name);
+      else return fmt::format_to(ctx.out(), "{} := {}", id.name, id.real_name);
+  }
+};

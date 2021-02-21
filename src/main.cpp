@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
     CodeStream code(args[0].data());
     code.open();
 
-    auto parser = oberon_07_parser();
+    auto parser = oberon07parser::get_parser();
 
     start = std::chrono::steady_clock::now();
     auto res = parser->parse(code);

@@ -5,3 +5,4 @@ data.txt
 .clangd
 .gdb_history
 examples
+.cache
