@@ -1,7 +1,7 @@
 #pragma once
 
 #include "parser.hpp"
-#include "selecter.hpp"
+#include "selector.hpp"
 #include "break_point.hpp"
 
 
@@ -297,26 +297,26 @@ inline ParserPtr<char> predicate(std::string name, Func func) {
 template <size_t... Is>
 struct Select {
     template <template <typename...> class BaseType, class... Types>
-    class ParserSelect : public Parser<typename selecter<Is...>::template type<Types...>> {
+    class ParserSelect : public Parser<typename selector<Is...>::template type<Types...>> {
     public:
-        using result = typename selecter<Is...>::template type<Types...>;
+        using result = typename selector<Is...>::template type<Types...>;
         ParserSelect(ParserPtr<Types>... parsers) : m_parser(parsers...) {}
         ParseResult<result> parse(CodeStream& stream) const noexcept override {
             if (auto res = m_parser.parse(stream); res) {
-                return selecter<Is...>::select(res.get_ok());
+                return selector<Is...>::select(res.get_ok());
             } else return res.get_err();
         }
     private:
         BaseType<Types...> m_parser;
     };
     template <class... Types>
-    class TupleSelect : public Parser<typename selecter<Is...>::template type<Types...>> {
+    class TupleSelect : public Parser<typename selector<Is...>::template type<Types...>> {
     public:
-        using result = typename selecter<Is...>::template type<Types...>;
+        using result = typename selector<Is...>::template type<Types...>;
         TupleSelect(ParserPtr<std::tuple<Types...>> parser) : m_parser(parser) {}
         ParseResult<result> parse(CodeStream& stream) const noexcept override {
             if (auto res = m_parser->parse(stream); res) {
-                return selecter<Is...>::select(res.get_ok());
+                return selector<Is...>::select(res.get_ok());
             } else return res.get_err();
         }
     private:

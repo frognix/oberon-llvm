@@ -6,3 +6,5 @@ data.txt
 .gdb_history
 examples
 .cache
+Doxyfile
+docs

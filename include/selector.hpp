@@ -53,4 +53,4 @@ struct sel {
 };
 
 template <size_t... Is>
-using selecter = sel<0, Is...>;
+using selector = sel<0, Is...>;
