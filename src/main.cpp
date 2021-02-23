@@ -3,8 +3,7 @@
 #include <chrono>
 
 inline void writeHelp(std::ostream& stream) {
-    stream << "Usage: oberon INFILE [OUTFILE]" << std::endl
-           << "With no OUTFILE write to standard output" << std::endl;
+    stream << "Usage: oberon INFILE [OUTFILE]" << std::endl << "With no OUTFILE write to standard output" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -42,8 +41,8 @@ int main(int argc, char* argv[]) {
         auto column = error.place.column;
         auto length = code.line_length(error.place.line);
         fmt::print("{}", code.get_line(error.place.line));
-        int i = int(length)-column-2;
-        fmt::print("{}{}{}\n", std::string(column-3, '-'), format_red("^^^^^"), std::string(i >= 0 ? i : 0, '-'));
+        int i = int(length) - column - 2;
+        fmt::print("{}{}{}\n", std::string(column - 3, '-'), format_red("^^^^^"), std::string(i >= 0 ? i : 0, '-'));
         fmt::print("{}\n", res.get_err().to_string());
     }
     fmt::print("{}\n", std::string(30, '-'));

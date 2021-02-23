@@ -1,42 +1,45 @@
 #pragma once
 
-#include <optional>
-#include <fstream>
 #include <fmt/format.h>
+#include <fstream>
+#include <optional>
 
 struct CodePlace {
     CodePlace() : line(0), column(0) {}
     CodePlace(size_t l, size_t c) : line(l), column(c) {}
-    void new_line() { line++; column = 0; }
+    void new_line() {
+        line++;
+        column = 0;
+    }
     std::string file;
     size_t line;
     size_t column;
 };
 
-template<>
+template <>
 struct fmt::formatter<CodePlace> {
-  template<typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(CodePlace const& id, FormatContext& ctx) {
-      return fmt::format_to(ctx.out(), "{}:{}", id.line, id.column);
-  }
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx) {
+        return ctx.begin();
+    }
+    template <typename FormatContext>
+    auto format(CodePlace const& id, FormatContext& ctx) {
+        return fmt::format_to(ctx.out(), "{}:{}", id.line, id.column);
+    }
 };
 
 class CodeStream {
     friend class BreakPoint;
-public:
+
+  public:
     CodeStream(std::string filename) noexcept
-        : m_data(), m_index(0), m_no_return_point(0),
-          m_data_structure(), m_filename(filename) {}
+        : m_data(), m_index(0), m_no_return_point(0), m_data_structure(), m_filename(filename) {}
 
     bool is_open() const noexcept { return m_data.size() != 0; }
     std::string_view get_filename() const noexcept { return m_filename; }
     CodePlace place() const noexcept { return index_to_place(m_index); }
     size_t index() const noexcept { return m_index; }
-    bool can_move_to(size_t index) noexcept {
-        return index >= m_no_return_point;
-    }
+    bool can_move_to(size_t index) noexcept { return index >= m_no_return_point; }
     void move_to(size_t index) noexcept {
         if (index < m_no_return_point) {
             fmt::print("Trying to return before no_return_point? No way!\n");
@@ -52,7 +55,8 @@ public:
     std::optional<std::string> get(size_t size) noexcept;
     std::optional<char> peek() const noexcept;
     std::string_view get_line(size_t num) const noexcept;
-private:
+
+  private:
     CodePlace index_to_place(size_t index) const noexcept;
     size_t place_to_index(CodePlace place) const noexcept;
 

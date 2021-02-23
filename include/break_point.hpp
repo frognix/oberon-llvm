@@ -2,10 +2,8 @@
 #include "parse_error.hpp"
 
 class BreakPoint {
-public:
-    BreakPoint(CodeStream& stream) : m_stream(stream) {
-        m_index = m_stream.index();
-    }
+  public:
+    BreakPoint(CodeStream& stream) : m_stream(stream) { m_index = m_stream.index(); }
 
     void close() { state = CLOSED; }
 
@@ -28,7 +26,8 @@ public:
             std::terminate();
         }
     }
-private:
+
+  private:
     enum {
         INVALID,
         CLOSED,

@@ -2,14 +2,16 @@
 
 bool CodeStream::open() noexcept {
     std::ifstream file(m_filename);
-    if (!file.is_open()) return false;
+    if (!file.is_open())
+        return false;
 
     char symbol = file.get();
     m_data_structure.push_back(0);
-    m_data.reserve(2*1024);
+    m_data.reserve(2 * 1024);
     while (symbol != -1) {
         m_data_structure.back()++;
-        if (symbol == '\n') m_data_structure.push_back(0);
+        if (symbol == '\n')
+            m_data_structure.push_back(0);
         m_data.push_back(symbol);
         symbol = file.get();
     }
@@ -17,14 +19,16 @@ bool CodeStream::open() noexcept {
 }
 
 std::optional<char> CodeStream::get() noexcept {
-    if (m_index >= m_data.size()) return {};
+    if (m_index >= m_data.size())
+        return {};
     auto val = m_data[m_index];
     m_index++;
     return val;
 }
 
 std::optional<std::string> CodeStream::get(size_t size) noexcept {
-    if (m_index + size > m_data.size()) return {};
+    if (m_index + size > m_data.size())
+        return {};
 
     auto val = m_data.substr(m_index, size);
     m_index += size;
@@ -33,7 +37,8 @@ std::optional<std::string> CodeStream::get(size_t size) noexcept {
 }
 
 std::optional<char> CodeStream::peek() const noexcept {
-    if (m_index >= m_data.size()) return {};
+    if (m_index >= m_data.size())
+        return {};
     return m_data[m_index];
 }
 

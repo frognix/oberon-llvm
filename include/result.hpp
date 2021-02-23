@@ -2,7 +2,7 @@
 
 template <class OK, class ERR>
 class Result {
-public:
+  public:
     using OkType = OK;
     using ErrType = ERR;
 
@@ -13,26 +13,15 @@ public:
         static_assert(!std::is_same_v<OkType, ErrType>, "Types must be unequal");
     }
 
-    bool is_ok() const {
-        return std::holds_alternative<OkType>(data);
-    }
+    bool is_ok() const { return std::holds_alternative<OkType>(data); }
 
-    operator bool() const {
-        return is_ok();
-    }
+    operator bool() const { return is_ok(); }
 
-    OkType get_ok() const {
-        return std::get<OkType>(data);
-    }
-    ErrType get_err() const {
-        return std::get<ErrType>(data);
-    }
-    OkType& ok_ref() {
-        return *std::get_if<OkType>(&data);
-    }
-    ErrType& err_ref() {
-        return *std::get_if<ErrType>(&data);
-    }
-private:
+    OkType get_ok() const { return std::get<OkType>(data); }
+    ErrType get_err() const { return std::get<ErrType>(data); }
+    OkType& ok_ref() { return *std::get_if<OkType>(&data); }
+    ErrType& err_ref() { return *std::get_if<ErrType>(&data); }
+
+  private:
     std::variant<OkType, ErrType> data;
 };

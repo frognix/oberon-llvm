@@ -1,25 +1,25 @@
-#include <vector>
-#include <map>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <queue>
+#include <vector>
 
 class counter {
-public:
+  public:
     counter() noexcept : ptr(nullptr) {}
 
     void* get() const noexcept { return ptr; }
 
     counter(const counter&) = default;
-private:
+
+  private:
     friend class reassign_core;
     void* ptr;
     size_t count;
 };
 
 class reassign_core {
-public:
-
+  public:
     static reassign_core& get_instance() noexcept;
 
     ~reassign_core();
@@ -44,7 +44,8 @@ public:
     void move(counter* counter, class counter* other) noexcept;
 
     static size_t copy_count;
-private:
+
+  private:
     reassign_core();
     counter* get_empty() noexcept;
     static std::unique_ptr<reassign_core> instance;
@@ -64,7 +65,8 @@ counter* reassign_core::get_new_counter(T&& value) noexcept {
 
 template <class T>
 void reassign_core::remove(counter* counter) noexcept {
-    if (counter == nullptr) return;
+    if (counter == nullptr)
+        return;
     counter->count--;
     if (counter->count == 0) {
         remove_data_ptr<T>(counter);
@@ -86,7 +88,8 @@ void reassign_core::remove_data_ptr(counter* counter) {
 
 template <class T>
 void reassign_core::move(counter* counter, class counter* other) noexcept {
-    if (counter == other) return;
+    if (counter == other)
+        return;
     remove_data_ptr<T>(counter);
     counter->ptr = other->ptr;
     other->ptr = nullptr;

@@ -3,7 +3,8 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
-enum color : int {
+enum color : int
+{
     Black = 30,
     Red = 31,
     Green = 32,
