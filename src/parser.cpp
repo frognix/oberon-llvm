@@ -1,8 +1,8 @@
-#include "oberon_07_parser.hpp"
+#include "parser.hpp"
 
-#include "parsers.hpp"
+#include "plib/parsers.hpp"
 
-namespace oberon07parser {
+using namespace nodes;
 
 std::vector<char> str_to_vec(std::string_view str) {
     std::vector<char> vec;
@@ -194,6 +194,16 @@ ParserPtr<std::vector<T>> maybe_list(ParserPtr<std::vector<T>> parser) {
             return std::vector<T>{};
     });
 }
+
+const std::vector<std::vector<char>> keywords = []() {
+    std::vector<std::string_view> vec = {
+        "ARRAY",  "FOR",   "PROCEDURE", "BEGIN", "IF",    "RECORD", "BY", "IMPORT", "REPEAT", "CASE",    "IN",
+        "RETURN", "CONST", "IS",        "THEN",  "DIV",   "MOD",    "TO", "DO",     "MODULE", "TRUE",    "ELSE",
+        "NIL",    "TYPE",  "ELSIF",     "OF",    "UNTIL", "END",    "OR", "VAR",    "FALSE",  "POINTER", "WHILE"};
+    std::vector<std::vector<char>> result{};
+    std::transform(vec.begin(), vec.end(), std::back_inserter(result), [](auto s) { return str_to_vec(s); });
+    return result;
+}();
 
 ParserPtr<Module> get_parser() {
 
@@ -397,7 +407,7 @@ ParserPtr<Module> get_parser() {
     statement = node_either<Statement>(assignment, procCall, ifStatement, caseStatement, whileStatement,
                                        repeatStatement, forStatement);
 
-    ParserPtr<CodeBlockPtr> procedureDecl;
+    ParserPtr<SectionPtr> procedureDecl;
 
     auto declarationSequence = construct<DeclarationSequence>(
         syntax_sequence(maybe_list(syntax_index<1>::select(keyword("CONST"), extra_delim0(constDecl, symbol(';')))),
@@ -423,7 +433,7 @@ ParserPtr<Module> get_parser() {
         declarationSequence, maybe_list(syntax_index<1>::select(keyword("BEGIN"), statementSequence)),
         maybe(syntax_index<1>::select(keyword("RETURN"), expression)), keyword("END")));
 
-    procedureDecl = node_either<CodeBlock>(
+    procedureDecl = node_either<Section>(
         parse_index<0>::tuple_select(except(syntax_sequence(procDeclBase, ident), "same ident", [](const auto& pair) {
             auto& [proc, ident] = pair;
             return proc.name.ident == ident;
@@ -445,5 +455,3 @@ ParserPtr<Module> get_parser() {
 
     return module;
 }
-
-} // namespace oberon07parser

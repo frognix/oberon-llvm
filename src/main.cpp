@@ -1,4 +1,4 @@
-#include "oberon_07_parser.hpp"
+#include "parser.hpp"
 
 #include <chrono>
 
@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     CodeStream code(args[0].data());
     code.open();
 
-    auto parser = oberon07parser::get_parser();
+    auto parser = get_parser();
 
     start = std::chrono::steady_clock::now();
     auto res = parser->parse(code);
