@@ -18,8 +18,8 @@ TypeResult Char::get_type(const SymbolTable&) const {
 
 TypeResult String::get_type(const SymbolTable&) const {
     auto ch = built_in_char();
-    auto size = make_optr<Expression, Number>(std::variant<Real, Integer>(Integer(value.size())));
-    return make_optr<Type, ArrayType>(std::vector{size}, ch);
+    auto size = make_expression<Number>(std::variant<Real, Integer>(Integer(value.size())));
+    return make_type<ArrayType>(std::vector{size}, ch);
 }
 
 TypeResult Nil::get_type(const SymbolTable&) const {
@@ -36,7 +36,7 @@ TypeResult Set::get_type(const SymbolTable&) const {
 
 //! \todo
 TypeResult ProcCall::get_type(const SymbolTable& table) const {
-    return make_optr<Type, BuiltInType>(std::vector{'R', 'E', 'A', 'L'});
+    return make_type<BuiltInType>(std::vector{'R', 'E', 'A', 'L'});
 }
 
 TypeResult Tilda::get_type(const SymbolTable& table) const {
@@ -50,5 +50,5 @@ TypeResult Tilda::get_type(const SymbolTable& table) const {
 
 ///! \todo
 TypeResult Term::get_type(const SymbolTable& table) const {
-    return make_optr<Type, BuiltInType>(std::vector{'R', 'E', 'A', 'L'});
+    return make_type<BuiltInType>(std::vector{'R', 'E', 'A', 'L'});
 }

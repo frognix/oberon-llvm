@@ -23,7 +23,7 @@ inline Ident str_to_ident(const char * str) {
 }
 
 inline TypePtr make_built_in(const char * str) {
-    return make_optr<Type, BuiltInType>(str_to_ident(str));
+    return make_type<BuiltInType>(str_to_ident(str));
 }
 
 inline TypePtr built_in_bool() {
