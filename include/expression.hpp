@@ -14,4 +14,9 @@ struct Expression : Node {
 
 using ExpressionPtr = OPtr<Expression>;
 
+template <class Subtype, class... Args>
+ExpressionPtr make_expression(Args... args) {
+    return make_optr<Expression, Subtype>(args...);
+}
+
 }

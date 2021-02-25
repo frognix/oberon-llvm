@@ -21,4 +21,9 @@ struct FieldList {
     bool operator == (const FieldList&) const = default;
 };
 
+template <class Subtype, class... Args>
+TypePtr make_type(Args... args) {
+    return make_optr<Type, Subtype>(args...);
+}
+
 }
