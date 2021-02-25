@@ -1,3 +1,5 @@
+#pragma once
+
 #include <variant>
 
 template <class OK, class ERR>

@@ -290,7 +290,11 @@ ParserPtr<Module> get_parser() {
 
     ParserPtr<IdentList> identList = extra_delim(identdef, symbol(','));
 
-    ParserPtr<TypeName> typeName = construct<TypeName>(qualident);
+    ParserPtr<BuiltInType> builtInType = construct<BuiltInType>(either({symbols("BOOLEAN"), symbols("CHAR"),
+                symbols("INTEGER"), symbols("REAL"),
+                symbols("BYTE"), symbols("SET")}));
+
+    ParserPtr<TypePtr> typeName = node_either<Type>(builtInType, construct<TypeName>(qualident));
 
     ParserPtr<FieldList> fieldList = construct<FieldList>(syntax_index<0, 2>::select(identList, symbol(':'), type));
 
@@ -320,7 +324,7 @@ ParserPtr<Module> get_parser() {
 
     ParserPtr<TypePtr> strucType = node_either<Type>(recordType, pointerType, arrayType, procedureType);
 
-    type = either({strucType, node_either<Type>(typeName)});
+    type = either({strucType, typeName});
 
     ParserPtr<ExpList> expList = extra_delim(expression, symbol(','));
 

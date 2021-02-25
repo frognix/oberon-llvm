@@ -11,7 +11,9 @@ src = [
   './src/format.cpp',
   './src/reassign_core.cpp',
   './src/code_stream.cpp',
-  './src/parser.cpp'
+  './src/parser.cpp',
+  './src/expression_nodes.cpp',
+  './src/type_nodes.cpp'
 ]
 
 fmt_dep = dependency('fmt')
