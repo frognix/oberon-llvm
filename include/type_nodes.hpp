@@ -105,7 +105,9 @@ struct FPSection {
     std::optional<Ident> var;
     std::vector<Ident> idents;
     FormalType type;
-    bool operator == (const FPSection&) const = default;
+    bool operator == (const FPSection& other) const {
+        return var == other.var && idents.size() == other.idents.size() && type == other.type;
+    }
 };
 
 struct FormalParameters {
