@@ -17,21 +17,27 @@ private:
 
 class ErrorBuilder {
 public:
-    ErrorBuilder(const nodes::Node* node, std::string info = "") : m_error(), m_info(info) {
-        m_error.place = node->place;
+    ErrorBuilder(CodePlace place) : m_error() {
+        m_error.place = place;
     }
     SemanticError build() {
-        m_error.error = fmt::format("{} {} ({})", m_error.place, m_error.error, m_info);
+        m_error.error =fmt::format("{}", fmt::join(errors, ";\n"));
         return m_error;
     }
     ErrorBuilder& exfound(const nodes::Node* expected, const nodes::Node* found) {
-        m_error.error += fmt::format("expected {}, found {}", expected->to_string(), found->to_string());
+        errors.push_back(fmt::format("expected {}, found {}", expected->to_string(), found->to_string()));
+        return *this;
+    }
+    ErrorBuilder& text(std::string str) {
+        errors.push_back(str);
         return *this;
     }
 private:
     SemanticError m_error;
-    std::string m_info;
+    std::vector<std::string> errors;
 };
+
+using Error = std::optional<SemanticError>;
 
 template <class T>
 using SemResult = Result<T, SemanticError>;
