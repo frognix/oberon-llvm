@@ -9,6 +9,7 @@ struct BuiltInType : Type {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("{}", type); }
     bool is_equal(const Type& other) const override;
+    Error check(const SymbolTable&) const override;
     BuiltInType() : type() {}
     BuiltInType(Ident i) : type(i) {}
     Ident type;
@@ -58,6 +59,7 @@ struct TypeName : Type {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return ident.to_string(); }
     bool is_equal(const Type& other) const override;
+    Error check(const SymbolTable&) const override;
     TypeName(QualIdent i) : ident(i) {}
     QualIdent ident;
 };
@@ -73,6 +75,7 @@ struct RecordType : Type {
             return fmt::format("RECORD {} END", seq);
     }
     bool is_equal(const Type& other) const override;
+    Error check(const SymbolTable&) const override;
     RecordType(std::optional<QualIdent> b, FieldListSequence s) : basetype(b), seq(s) {}
     std::optional<QualIdent> basetype;
     FieldListSequence seq;
@@ -82,6 +85,7 @@ struct PointerType : Type {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("POINTER TO {}", type); }
     bool is_equal(const Type& other) const override;
+    Error check(const SymbolTable&) const override;
     PointerType(TypePtr t) : type(t) {}
     TypePtr type;
 };
@@ -90,6 +94,7 @@ struct ArrayType : Type {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("ARRAY {} OF {}", fmt::join(lengths, ", "), type); }
     bool is_equal(const Type& other) const override;
+    Error check(const SymbolTable&) const override;
     ArrayType(std::vector<ExpressionPtr> l, TypePtr t) : lengths(l), type(t) {}
     std::vector<ExpressionPtr> lengths;
     TypePtr type;
@@ -120,12 +125,20 @@ struct ProcedureType : Type {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("PROCEDURE {}", params); }
     bool is_equal(const Type& other) const override;
+    Error check(const SymbolTable&) const override;
     ProcedureType() {}
     ProcedureType(std::optional<FormalParameters> par) {
         if (par)
             params = *par;
     }
     FormalParameters params;
+};
+
+struct AnyType : Type {
+    const std::type_info& type_info() const { return typeid(*this); }
+    std::string to_string() const { return "ANY"; }
+    bool is_equal(const Type& other) const override;
+    Error check(const SymbolTable&) const override;
 };
 
 }

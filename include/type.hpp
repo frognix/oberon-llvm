@@ -1,6 +1,9 @@
 #pragma once
 
 #include "node.hpp"
+#include "semantic_error.hpp"
+
+class SymbolTable;
 
 namespace nodes {
 
@@ -9,6 +12,7 @@ struct Type : Node {
         return typeid(*this) == typeid(other) && is_equal(other);
     }
     virtual bool is_equal(const Type& other) const = 0;
+    virtual Error check(const SymbolTable&) const = 0;
 };
 
 // using TypePtr = OPtr<Type>;
