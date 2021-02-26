@@ -12,7 +12,8 @@ struct Number : Expression {
     std::string to_string() const {
         return std::visit([](auto&& arg) { return fmt::format("{}", arg); }, value);
     }
-    TypeResult get_type(const SymbolTable& table) const override;
+    SemResult get_type(const SymbolTable& table) const override;
+    SemResult eval(const SymbolTable&) const override;
     Number(std::variant<Real, Integer> v) : value(v) {}
     std::variant<Real, Integer> value;
 };
@@ -25,7 +26,8 @@ struct Char : Expression {
         else
             return fmt::format("'{}'", value);
     }
-    TypeResult get_type(const SymbolTable& table) const override;
+    SemResult get_type(const SymbolTable& table) const override;
+    SemResult eval(const SymbolTable&) const override;
     Char(char c) : value(c) {}
     char value;
 };
@@ -33,7 +35,8 @@ struct Char : Expression {
 struct String : Expression {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("\"{}\"", fmt::join(value, "")); }
-    TypeResult get_type(const SymbolTable& table) const override;
+    SemResult get_type(const SymbolTable& table) const override;
+    SemResult eval(const SymbolTable&) const override;
     String(std::vector<char> v) : value(v) {}
     std::vector<char> value;
 };
@@ -41,14 +44,16 @@ struct String : Expression {
 struct Nil : Expression {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return "NIL"; }
-    TypeResult get_type(const SymbolTable& table) const override;
+    SemResult get_type(const SymbolTable& table) const override;
+    SemResult eval(const SymbolTable&) const override;
     Nil() {}
 };
 
 struct Boolean : Expression {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("{}", value); }
-    TypeResult get_type(const SymbolTable& table) const override;
+    SemResult get_type(const SymbolTable& table) const override;
+    SemResult eval(const SymbolTable&) const override;
     Boolean(bool v) : value(v) {}
     bool value;
 };
@@ -61,7 +66,8 @@ struct SetElement {
 struct Set : Expression {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("{{{}}}", fmt::join(value, ", ")); }
-    TypeResult get_type(const SymbolTable& table) const override;
+    SemResult get_type(const SymbolTable& table) const override;
+    SemResult eval(const SymbolTable&) const override;
     Set(std::optional<std::vector<SetElement>> v) {
         if (v)
             value = *v;
@@ -86,7 +92,8 @@ struct ProcCall : Expression, Statement {
         else
             return fmt::format("{}", ident);
     }
-    TypeResult get_type(const SymbolTable& table) const override;
+    SemResult get_type(const SymbolTable& table) const override;
+    SemResult eval(const SymbolTable&) const override;
     ProcCall(Designator i, std::optional<ExpList> e) : ident(i), params(e) {}
     Designator ident;
     std::optional<ExpList> params;
@@ -95,7 +102,8 @@ struct ProcCall : Expression, Statement {
 struct Tilda : Expression {
     const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("~{}", expression); }
-    TypeResult get_type(const SymbolTable& table) const override;
+    SemResult get_type(const SymbolTable& table) const override;
+    SemResult eval(const SymbolTable&) const override;
     Tilda(ExpressionPtr ptr) : expression(ptr) {}
     ExpressionPtr expression;
 };
@@ -118,7 +126,8 @@ struct Term : Expression {
         else
             return res + fmt::format("{}", first);
     }
-    TypeResult get_type(const SymbolTable& table) const override;
+    SemResult get_type(const SymbolTable& table) const override;
+    SemResult eval(const SymbolTable&) const override;
     Term() {}
     Term(std::optional<char> s, ExpressionPtr f, std::optional<std::tuple<Operator, ExpressionPtr>> sec)
         : sign(s), first(f) {

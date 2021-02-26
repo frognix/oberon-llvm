@@ -6,6 +6,7 @@
 class Procedure;
 
 class SymbolTable {
+
 private:
     std::map<nodes::Ident, nodes::Expression> consts;
     std::map<nodes::Ident, nodes::Type> types;
