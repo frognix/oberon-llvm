@@ -32,6 +32,11 @@ public:
         errors.push_back(str);
         return *this;
     }
+    template <class... Args>
+    ErrorBuilder& format(const char* str, Args... args) {
+        errors.push_back(fmt::format(str, args...));
+        return *this;
+    }
 private:
     SemanticError m_error;
     std::vector<std::string> errors;

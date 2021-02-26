@@ -13,7 +13,7 @@ TypeResult Number::get_type(const SymbolTable&) const {
 }
 
 ExprResult Number::eval(const SymbolTable&) const {
-    return ErrorBuilder(this, "Undefined").build();
+    return ErrorBuilder(this->place).text("Undefined").build();
 }
 
 TypeResult Char::get_type(const SymbolTable&) const {
@@ -21,7 +21,7 @@ TypeResult Char::get_type(const SymbolTable&) const {
 }
 
 ExprResult Char::eval(const SymbolTable&) const {
-    return ErrorBuilder(this, "Undefined").build();
+    return ErrorBuilder(this->place).text("Undefined").build();
 }
 
 TypeResult String::get_type(const SymbolTable&) const {
@@ -31,7 +31,7 @@ TypeResult String::get_type(const SymbolTable&) const {
 }
 
 ExprResult String::eval(const SymbolTable&) const {
-    return ErrorBuilder(this, "Undefined").build();
+    return ErrorBuilder(this->place).text("Undefined").build();
 }
 
 TypeResult Nil::get_type(const SymbolTable&) const {
@@ -39,7 +39,7 @@ TypeResult Nil::get_type(const SymbolTable&) const {
 }
 
 ExprResult Nil::eval(const SymbolTable&) const {
-    return ErrorBuilder(this, "Undefined").build();
+    return ErrorBuilder(this->place).text("Undefined").build();
 }
 
 TypeResult Boolean::get_type(const SymbolTable&) const {
@@ -47,7 +47,7 @@ TypeResult Boolean::get_type(const SymbolTable&) const {
 }
 
 ExprResult Boolean::eval(const SymbolTable&) const {
-    return ErrorBuilder(this, "Undefined").build();
+    return ErrorBuilder(this->place).text("Undefined").build();
 }
 
 TypeResult Set::get_type(const SymbolTable&) const {
@@ -55,7 +55,7 @@ TypeResult Set::get_type(const SymbolTable&) const {
 }
 
 ExprResult Set::eval(const SymbolTable&) const {
-    return ErrorBuilder(this, "Undefined").build();
+    return ErrorBuilder(this->place).text("Undefined").build();
 }
 
 //! \todo
@@ -64,7 +64,7 @@ TypeResult ProcCall::get_type(const SymbolTable& table) const {
 }
 
 ExprResult ProcCall::eval(const SymbolTable&) const {
-    return ErrorBuilder((Expression*)this, "Undefined").build();
+    return ErrorBuilder(((Expression*)this)->place).text("Undefined").build();
 }
 
 TypeResult Tilda::get_type(const SymbolTable& table) const {
@@ -72,12 +72,12 @@ TypeResult Tilda::get_type(const SymbolTable& table) const {
     if (expr_type) {
         auto boolean = built_in_bool();
         if (expr_type.get_ok() == boolean) return boolean;
-        else return ErrorBuilder(this).exfound(boolean.get(), expr_type.get_ok().get()).build();
+        else return ErrorBuilder(this->place).exfound(boolean.get(), expr_type.get_ok().get()).build();
     } else return expr_type;
 }
 
 ExprResult Tilda::eval(const SymbolTable&) const {
-    return ErrorBuilder(this, "Undefined").build();
+    return ErrorBuilder(this->place).text("Undefined").build();
 }
 
 ///! \todo
@@ -86,5 +86,5 @@ TypeResult Term::get_type(const SymbolTable& table) const {
 }
 
 ExprResult Term::eval(const SymbolTable&) const {
-    return ErrorBuilder(this, "Undefined").build();
+    return ErrorBuilder(this->place).text("Undefined").build();
 }
