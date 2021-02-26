@@ -11,7 +11,7 @@ struct Type : Node {
     virtual bool is_equal(const Type& other) const = 0;
 };
 
-using TypePtr = OPtr<Type>;
+// using TypePtr = OPtr<Type>;
 
 using IdentList = std::vector<IdentDef>;
 

@@ -1,8 +1,9 @@
 #pragma once
 
 #include "plib/result.hpp"
+#include "plib/code_stream.hpp"
 
-#include "type.hpp"
+#include "node.hpp"
 
 class SemanticError {
 public:
@@ -32,4 +33,9 @@ private:
     std::string m_info;
 };
 
-using SemResult = Result<nodes::TypePtr, SemanticError>;
+template <class T>
+using SemResult = Result<T, SemanticError>;
+
+using ExprResult = SemResult<nodes::ExpressionPtr>;
+using TypeResult = SemResult<nodes::TypePtr>;
+// using ExprResult = SemResult<ExpressionPtr>;

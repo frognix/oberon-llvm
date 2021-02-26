@@ -4,7 +4,7 @@
 
 using namespace nodes;
 
-SemResult Number::get_type(const SymbolTable&) const {
+TypeResult Number::get_type(const SymbolTable&) const {
     if (std::holds_alternative<Real>(value)) {
         return built_in_real();
     } else {
@@ -12,62 +12,62 @@ SemResult Number::get_type(const SymbolTable&) const {
     }
 }
 
-SemResult Number::eval(const SymbolTable&) const {
+ExprResult Number::eval(const SymbolTable&) const {
     return ErrorBuilder(this, "Undefined").build();
 }
 
-SemResult Char::get_type(const SymbolTable&) const {
+TypeResult Char::get_type(const SymbolTable&) const {
     return built_in_char();
 }
 
-SemResult Char::eval(const SymbolTable&) const {
+ExprResult Char::eval(const SymbolTable&) const {
     return ErrorBuilder(this, "Undefined").build();
 }
 
-SemResult String::get_type(const SymbolTable&) const {
+TypeResult String::get_type(const SymbolTable&) const {
     auto ch = built_in_char();
     auto size = make_expression<Number>(std::variant<Real, Integer>(Integer(value.size())));
     return make_type<ArrayType>(std::vector{size}, ch);
 }
 
-SemResult String::eval(const SymbolTable&) const {
+ExprResult String::eval(const SymbolTable&) const {
     return ErrorBuilder(this, "Undefined").build();
 }
 
-SemResult Nil::get_type(const SymbolTable&) const {
+TypeResult Nil::get_type(const SymbolTable&) const {
     return built_in_nil();
 }
 
-SemResult Nil::eval(const SymbolTable&) const {
+ExprResult Nil::eval(const SymbolTable&) const {
     return ErrorBuilder(this, "Undefined").build();
 }
 
-SemResult Boolean::get_type(const SymbolTable&) const {
+TypeResult Boolean::get_type(const SymbolTable&) const {
     return built_in_bool();
 }
 
-SemResult Boolean::eval(const SymbolTable&) const {
+ExprResult Boolean::eval(const SymbolTable&) const {
     return ErrorBuilder(this, "Undefined").build();
 }
 
-SemResult Set::get_type(const SymbolTable&) const {
+TypeResult Set::get_type(const SymbolTable&) const {
     return built_in_set();
 }
 
-SemResult Set::eval(const SymbolTable&) const {
+ExprResult Set::eval(const SymbolTable&) const {
     return ErrorBuilder(this, "Undefined").build();
 }
 
 //! \todo
-SemResult ProcCall::get_type(const SymbolTable& table) const {
+TypeResult ProcCall::get_type(const SymbolTable& table) const {
     return make_type<BuiltInType>(std::vector{'R', 'E', 'A', 'L'});
 }
 
-SemResult ProcCall::eval(const SymbolTable&) const {
+ExprResult ProcCall::eval(const SymbolTable&) const {
     return ErrorBuilder((Expression*)this, "Undefined").build();
 }
 
-SemResult Tilda::get_type(const SymbolTable& table) const {
+TypeResult Tilda::get_type(const SymbolTable& table) const {
     auto expr_type = expression->get_type(table);
     if (expr_type) {
         auto boolean = built_in_bool();
@@ -76,15 +76,15 @@ SemResult Tilda::get_type(const SymbolTable& table) const {
     } else return expr_type;
 }
 
-SemResult Tilda::eval(const SymbolTable&) const {
+ExprResult Tilda::eval(const SymbolTable&) const {
     return ErrorBuilder(this, "Undefined").build();
 }
 
 ///! \todo
-SemResult Term::get_type(const SymbolTable& table) const {
+TypeResult Term::get_type(const SymbolTable& table) const {
     return make_type<BuiltInType>(std::vector{'R', 'E', 'A', 'L'});
 }
 
-SemResult Term::eval(const SymbolTable&) const {
+ExprResult Term::eval(const SymbolTable&) const {
     return ErrorBuilder(this, "Undefined").build();
 }

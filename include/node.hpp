@@ -12,4 +12,16 @@ struct Node {
     virtual ~Node() {}
 };
 
+struct Expression;
+using ExpressionPtr = OPtr<Expression>;
+
+struct Type;
+using TypePtr = OPtr<Type>;
+
+struct Statement;
+using StatementPtr = OPtr<Statement>;
+
+struct Section;
+using SectionPtr = OPtr<Section>;
+
 }
