@@ -6,7 +6,6 @@
 namespace nodes {
 
 struct Assignment : Statement {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("{} := {}", variable, value); }
     Assignment(Designator var, ExpressionPtr val) : variable(var), value(val) {}
     Designator variable;
@@ -16,7 +15,6 @@ struct Assignment : Statement {
 using IfBlock = std::tuple<ExpressionPtr, StatementSequence>;
 
 struct IfStatement : Statement {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         auto [cond, block] = if_blocks[0];
         std::vector<IfBlock> elsif_blocks = {if_blocks.begin() + 1, if_blocks.end()};
@@ -41,7 +39,6 @@ using CaseLabelList = std::vector<CaseLabel>;
 using Case = std::tuple<CaseLabelList, StatementSequence>;
 
 struct CaseStatement : Statement {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("CASE {} OF {} END", expression, fmt::join(cases, " |\n")); }
     CaseStatement(ExpressionPtr e, std::vector<Case> c) : expression(e), cases(c) {}
     ExpressionPtr expression;
@@ -49,7 +46,6 @@ struct CaseStatement : Statement {
 };
 
 struct WhileStatement : Statement {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         auto [cond, block] = if_blocks[0];
         std::vector<IfBlock> elsif_blocks = {if_blocks.begin() + 1, if_blocks.end()};
@@ -60,7 +56,6 @@ struct WhileStatement : Statement {
 };
 
 struct RepeatStatement : Statement {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         auto [cond, block] = if_block;
         return fmt::format("REPEAT {} UNTIL\n{}", block, cond);
@@ -70,7 +65,6 @@ struct RepeatStatement : Statement {
 };
 
 struct ForStatement : Statement {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         if (by_expr)
             return fmt::format("FOR {} := {} TO {} BY {} DO\n{}\nEND", ident, for_expr, to_expr, *by_expr, block);

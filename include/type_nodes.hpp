@@ -6,7 +6,6 @@
 namespace nodes {
 
 struct BuiltInType : Type {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("{}", type); }
     bool is_equal(const Type& other) const override;
     Error check(const SymbolTable&) const override;
@@ -48,7 +47,6 @@ inline TypePtr built_in_nil() {
 }
 
 struct TypeName : Type {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return ident.to_string(); }
     bool is_equal(const Type& other) const override;
     Error check(const SymbolTable&) const override;
@@ -59,7 +57,6 @@ struct TypeName : Type {
 using FieldListSequence = std::vector<FieldList>;
 
 struct RecordType : Type {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         if (basetype)
             return fmt::format("RECORD ({}) {} END", *basetype, seq);
@@ -74,7 +71,6 @@ struct RecordType : Type {
 };
 
 struct PointerType : Type {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("POINTER TO {}", type); }
     bool is_equal(const Type& other) const override;
     Error check(const SymbolTable&) const override;
@@ -83,7 +79,6 @@ struct PointerType : Type {
 };
 
 struct ArrayType : Type {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("ARRAY {} OF {}", fmt::join(lengths, ", "), type); }
     bool is_equal(const Type& other) const override;
     Error check(const SymbolTable&) const override;
@@ -114,7 +109,6 @@ struct FormalParameters {
 };
 
 struct ProcedureType : Type {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("PROCEDURE {}", params); }
     bool is_equal(const Type& other) const override;
     Error check(const SymbolTable&) const override;
@@ -127,7 +121,6 @@ struct ProcedureType : Type {
 };
 
 struct AnyType : Type {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return "ANY"; }
     bool is_equal(const Type& other) const override;
     Error check(const SymbolTable&) const override;

@@ -9,7 +9,6 @@
 namespace nodes {
 
 struct Number : Expression {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         return std::visit([](auto&& arg) { return fmt::format("{}", arg); }, value);
     }
@@ -20,7 +19,6 @@ struct Number : Expression {
 };
 
 struct Char : Expression {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         if (value < ' ' || value > '~')
             return fmt::format("{}X", (int)value);
@@ -34,7 +32,6 @@ struct Char : Expression {
 };
 
 struct String : Expression {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("\"{}\"", fmt::join(value, "")); }
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
@@ -43,7 +40,6 @@ struct String : Expression {
 };
 
 struct Nil : Expression {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return "NIL"; }
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
@@ -51,7 +47,6 @@ struct Nil : Expression {
 };
 
 struct Boolean : Expression {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("{}", value); }
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
@@ -65,7 +60,6 @@ struct SetElement {
 };
 
 struct Set : Expression {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("{{{}}}", fmt::join(value, ", ")); }
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
@@ -86,7 +80,6 @@ struct Designator {
 };
 
 struct ProcCall : Expression, Statement {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         if (params)
             return fmt::format("{}({})", ident, fmt::join(*params, ", "));
@@ -101,7 +94,6 @@ struct ProcCall : Expression, Statement {
 };
 
 struct Tilda : Expression {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const { return fmt::format("~{}", expression); }
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
@@ -117,7 +109,6 @@ struct Operator {
 };
 
 struct Term : Expression {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         std::string res = "";
         if (sign)

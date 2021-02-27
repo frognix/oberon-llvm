@@ -26,7 +26,6 @@ struct DeclarationSequence {
 };
 
 struct ProcedureDeclaration : Section {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         std::string statements;
         if (!body.empty())
@@ -63,7 +62,6 @@ struct Import {
 using ImportList = std::vector<Import>;
 
 struct Module : Section {
-    const std::type_info& type_info() const { return typeid(*this); }
     std::string to_string() const {
         return fmt::format("MODULE {}; IMPORT {}\n{}\nBEGIN\n{}\nEND {}.", name, fmt::join(imports, ", "), declarations,
                            body, name);

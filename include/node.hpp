@@ -7,7 +7,6 @@ namespace nodes {
 
 struct Node {
     CodePlace place;
-    virtual const std::type_info& type_info() const = 0;
     virtual std::string to_string() const = 0;
     virtual ~Node() {}
 };
@@ -17,7 +16,6 @@ struct Node {
 struct Ident : public Node {
     Ident() {}
     Ident(std::vector<char> v) : value(v) {}
-    const std::type_info& type_info() const override { return typeid(*this); };
     std::string to_string() const override { return fmt::format("{}", value); };
     bool operator == (const Ident& other) const { return value == other.value; };
     std::vector<char> value;
