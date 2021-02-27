@@ -111,9 +111,9 @@ struct Tilda : Expression {
 
 struct Operator {
     Operator() {}
-    Operator(std::vector<char> v) : value(v) {}
+    Operator(Ident v) : value(v) {}
     Operator(char v) : value({v}) {}
-    std::vector<char> value;
+    Ident value;
 };
 
 struct Term : Expression {

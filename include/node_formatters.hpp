@@ -6,15 +6,15 @@
 #include "nodes.hpp"
 
 template <>
-struct fmt::formatter<std::vector<char>> {
+struct fmt::formatter<nodes::Ident> {
     template <typename ParseContext>
     constexpr auto parse(ParseContext& ctx) {
         return ctx.begin();
     }
 
     template <typename FormatContext>
-    auto format(std::vector<char> const& vec, FormatContext& ctx) {
-        return fmt::format_to(ctx.out(), "{}", fmt::join(vec, ""));
+    auto format(nodes::Ident const& ident, FormatContext& ctx) {
+        return fmt::format_to(ctx.out(), "{}", fmt::join(ident.value, ""));
     }
 };
 

@@ -15,14 +15,6 @@ struct BuiltInType : Type {
     Ident type;
 };
 
-inline Ident str_to_ident(const char * str) {
-    Ident ident;
-    for (int i = 0; i != '\0'; i++) {
-        ident.push_back(str[i]);
-    }
-    return ident;
-}
-
 inline TypePtr make_built_in(const char * str) {
     return make_type<BuiltInType>(str_to_ident(str));
 }

@@ -11,21 +11,25 @@ namespace std {
 template<>
 struct hash<nodes::Ident> {
     std::size_t operator()(nodes::Ident const& id) const noexcept {
-        return std::hash<std::string_view>{}(std::string_view(id.data(), id.size()));
+        return std::hash<std::string_view>{}(std::string_view(id.value.data(), id.value.size()));
+    }
+};
+
+template<>
+struct hash<nodes::QualIdent> {
+    std::size_t operator()(nodes::QualIdent const& id) const noexcept {
+        if (!id.qual) {
+            return std::hash<nodes::Ident>{}(id.ident);
+        } else {
+            return std::hash<nodes::Ident>{}(id.ident) ^ std::hash<nodes::Ident>{}(*id.qual);
+        }
     }
 };
 
 } // namespace std
 
-class Module;
-
-struct Import {
-    nodes::Ident name;
-    std::unique_ptr<Module> table;
-};
-
 enum class SymbolGroup {
-    TYPE, VAR, CONST
+    TYPE, VAR, CONST, ANY
 };
 
 struct Symbol {
@@ -111,4 +115,73 @@ private:
     SymbolTable* m_parent;
 };
 
-class Module {};
+class Module;
+
+using ModulePtr = Module*;
+
+struct Import {
+    nodes::Ident name;
+    ModulePtr module;
+};
+
+class Module : public SymbolTable {
+public:
+    Module(nodes::Ident name, nodes::DeclarationSequence body, CodePlace place)
+        : SymbolTable(), m_name(name), m_body(body), m_place(place) {}
+    Error add_imports(nodes::ImportList imports) {
+        for (auto& import : imports) {
+            if (auto res = m_imports.find(import.name); res != m_imports.end()) {
+                return ErrorBuilder(m_place).format("Unexpected nonunique import '{}'", import.name).build();
+            }
+            m_imports[import.name] = Import{import.real_name, nullptr};
+        }
+        return {};
+    }
+    SemResult<Symbol> get_symbol_out(const nodes::Ident& ident, CodePlace place) const {
+        if (m_exports.contains(ident)) {
+            nodes::QualIdent name{{}, ident};
+            return SymbolTable::get_symbol(name, place);
+        } else {
+            return ErrorBuilder(place).format("Attempting to access a non-exported symbol {}.{}", m_name, ident).build();
+        }
+    }
+    virtual SemResult<Symbol> get_symbol(const nodes::QualIdent& ident, CodePlace place) const override {
+        if (!ident.qual) {
+            return SymbolTable::get_symbol(ident, place);
+        } else {
+            if (auto res = m_imports.find(*ident.qual); res != m_imports.end()) {
+                auto& import = res->second;
+                if (import.module == nullptr) {
+                    Symbol symbol{ident.ident, SymbolGroup::ANY, nodes::make_type<nodes::AnyType>(), m_place, 0};
+                    return symbol;
+                } else {
+                    return import.module->get_symbol_out(ident.ident, place);
+                }
+            } else {
+                return ErrorBuilder(m_place).format("Import '{}' does not exist", res->second.name).build();
+            }
+        }
+    }
+    virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident, CodePlace place) const override {
+    }
+    virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident, CodePlace place) const override {
+    }
+
+    virtual Error add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, CodePlace place) override {
+        if (ident.def) {
+            auto error = SymbolTable::add_symbol(ident, group, type, place);
+            if (!error) {
+                m_exports.insert(ident.ident);
+            }
+            return error;
+        } else {
+            return SymbolTable::add_symbol(ident, group, type, place);
+        }
+    }
+private:
+    nodes::Ident m_name;
+    SymbolMap<Import> m_imports;
+    SymbolSet m_exports;
+    nodes::DeclarationSequence m_body;
+    CodePlace m_place;
+};

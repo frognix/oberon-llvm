@@ -4,7 +4,7 @@
 
 using namespace nodes;
 
-std::vector<char> str_to_vec(std::string_view str) {
+Ident str_to_ident(std::string_view str) {
     std::vector<char> vec;
     vec.insert(vec.end(), str.begin(), str.end());
     return vec;
@@ -195,13 +195,13 @@ ParserPtr<std::vector<T>> maybe_list(ParserPtr<std::vector<T>> parser) {
     });
 }
 
-const std::vector<std::vector<char>> keywords = []() {
+const std::vector<Ident> keywords = []() {
     std::vector<std::string_view> vec = {
         "ARRAY",  "FOR",   "PROCEDURE", "BEGIN", "IF",    "RECORD", "BY", "IMPORT", "REPEAT", "CASE",    "IN",
         "RETURN", "CONST", "IS",        "THEN",  "DIV",   "MOD",    "TO", "DO",     "MODULE", "TRUE",    "ELSE",
         "NIL",    "TYPE",  "ELSIF",     "OF",    "UNTIL", "END",    "OR", "VAR",    "FALSE",  "POINTER", "WHILE"};
-    std::vector<std::vector<char>> result{};
-    std::transform(vec.begin(), vec.end(), std::back_inserter(result), [](auto s) { return str_to_vec(s); });
+    std::vector<Ident> result{};
+    std::transform(vec.begin(), vec.end(), std::back_inserter(result), [](auto s) { return str_to_ident(s); });
     return result;
 }();
 
@@ -215,13 +215,13 @@ ParserPtr<Module> get_parser() {
         predicate("letter", [](auto c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); });
     ParserPtr<char> digit = predicate("digit", isdigit);
     ParserPtr<char> hexdigit = predicate("hexdigit", isxdigit);
-    ParserPtr<Ident> identifier = chain(letter, many(either({letter, digit})));
+    ParserPtr<Ident> identifier = construct<Ident>(chain(letter, many(either({letter, digit}))));
     ParserPtr<Ident> ident = not_from(identifier, keywords);
 
     auto keyword = [identifier](std::string_view key) {
         std::vector<char> val({});
         val.insert(val.begin(), key.begin(), key.end());
-        return no_return(equal_to(identifier, val));
+        return no_return(equal_to(identifier, Ident(val)));
     };
 
     ParserPtr<Nil> nil = extension(keyword("NIL"), [](const auto&) { return Nil{}; });
