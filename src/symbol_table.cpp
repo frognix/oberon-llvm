@@ -5,7 +5,7 @@ SymbolTable::SymbolTable() {}
 Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
     for (auto& decl : seq.constDecls) {
         if (auto type = decl.expression->get_type(*this); type) {
-            auto error = add_value(decl.ident, SymbolGroup::CONST, type.get_ok(), decl.expression->place, decl.expression);
+            auto error = add_value(decl.ident, SymbolGroup::CONST, type.get_ok(), decl.expression);
             if (error) return error;
         } else {
             return type.get_err();
@@ -15,7 +15,7 @@ Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
         if (auto typeError = decl.type->check(*this); typeError) {
             return typeError;
         } else {
-            auto error = add_symbol(decl.ident, SymbolGroup::TYPE, decl.type, decl.type->place);
+            auto error = add_symbol(decl.ident, SymbolGroup::TYPE, decl.type);
             if (error) return error;
         }
     }
@@ -24,7 +24,7 @@ Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
             return typeError;
         } else {
             for (auto& var : decl.list) {
-                auto error = add_symbol(var, SymbolGroup::VAR, decl.type, decl.type->place);
+                auto error = add_symbol(var, SymbolGroup::VAR, decl.type);
                 if (error) return error;
             }
         }
@@ -39,34 +39,32 @@ Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
                 return tableError;
             }
             nodes::TypePtr typePtr = std::make_shared<nodes::ProcedureType>(decl.type);
-            auto error = add_table(decl.name, SymbolGroup::CONST, typePtr, decl.place, TablePtr(table));
+            auto error = add_table(decl.name, SymbolGroup::CONST, typePtr, TablePtr(table));
             if (error) return error;
         }
     }
     return {};
 }
 
-Error SymbolTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, CodePlace place) {
+Error SymbolTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
     if (symbols.contains(ident.ident)) {
         auto symbol = symbols[ident.ident];
-        return ErrorBuilder(place).format("Redefinition of symbol {}", ident.ident)
-            .format("{} First definition here", symbol.place)
-            .format("{} Second definition here", place).build();
+        return ErrorBuilder(ident.ident.place).format("Redefinition of symbol {}", ident.ident)
+            .format("{} First definition here", symbol.name.place)
+            .format("{} Second definition here", ident.ident.place).build();
     } else {
         Symbol symbol;
         symbol.name = ident.ident;
         symbol.group = group;
         symbol.type = type;
-        symbol.place = place;
         symbol.count = 0;
         symbols[ident.ident] = symbol;
         return {};
     }
 }
 
-Error SymbolTable::add_value(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, CodePlace place,
-                             nodes::ExpressionPtr value) {
-    if (auto error = add_symbol(ident, group, type, place); error) {
+Error SymbolTable::add_value(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value) {
+    if (auto error = add_symbol(ident, group, type); error) {
         return error;
     } else {
         values[ident.ident] = value;
@@ -74,8 +72,8 @@ Error SymbolTable::add_value(nodes::IdentDef ident, SymbolGroup group, nodes::Ty
     }
 }
 
-Error SymbolTable::add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, CodePlace place, TablePtr table) {
-    if (auto error = add_symbol(ident, group, type, place); error) {
+Error SymbolTable::add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) {
+    if (auto error = add_symbol(ident, group, type); error) {
         return error;
     } else {
         tables[ident.ident] = std::move(table);
@@ -83,8 +81,8 @@ Error SymbolTable::add_table(nodes::IdentDef ident, SymbolGroup group, nodes::Ty
     }
 }
 
-SemResult<Symbol> SymbolTable::get_symbol(const nodes::QualIdent& ident, CodePlace place) const {
-    auto error =  ErrorBuilder(place).format("Symbol {} not found", place).build();
+SemResult<Symbol> SymbolTable::get_symbol(const nodes::QualIdent& ident) const {
+    auto error =  ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
     if (ident.qual) {
         return error;
     } else {
@@ -96,8 +94,8 @@ SemResult<Symbol> SymbolTable::get_symbol(const nodes::QualIdent& ident, CodePla
     }
 }
 
-SemResult<nodes::ExpressionPtr> SymbolTable::get_value(const nodes::QualIdent& ident, CodePlace place) const {
-    auto error =  ErrorBuilder(place).format("Symbol {} not found", place).build();
+SemResult<nodes::ExpressionPtr> SymbolTable::get_value(const nodes::QualIdent& ident) const {
+    auto error =  ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
     if (ident.qual) {
         return error;
     } else {
@@ -108,8 +106,8 @@ SemResult<nodes::ExpressionPtr> SymbolTable::get_value(const nodes::QualIdent& i
         }
     }
 }
-SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident, CodePlace place) const {
-    auto error =  ErrorBuilder(place).format("Symbol {} not found", place).build();
+SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident) const {
+    auto error =  ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
     if (ident.qual) {
         return error;
     } else {
