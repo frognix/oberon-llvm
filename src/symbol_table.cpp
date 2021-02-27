@@ -1,4 +1,5 @@
 #include "symbol_table.hpp"
+#include "procedure_table.hpp"
 
 SymbolTable::SymbolTable() {}
 
@@ -34,7 +35,7 @@ Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
         if (auto typeError = decl.type.check(*this); typeError) {
             return typeError;
         } else {
-            auto table = std::make_shared<Procedure>(decl.name.ident, decl.type, decl.ret, decl.body, this);
+            auto table = std::make_shared<ProcedureTable>(decl.name.ident, decl.type, decl.ret, decl.body, this);
             if (auto tableError = table->parse(decl.decls); tableError) {
                 return tableError;
             }

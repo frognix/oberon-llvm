@@ -8,13 +8,15 @@ incdir = include_directories('include')
 
 src = [
   './src/main.cpp',
-  './src/format.cpp',
-  './src/reassign_core.cpp',
-  './src/code_stream.cpp',
+  './src/plib/format.cpp',
+  './src/plib/reassign_core.cpp',
+  './src/plib/code_stream.cpp',
   './src/parser.cpp',
   './src/expression_nodes.cpp',
   './src/type_nodes.cpp',
-  './src/symbol_table.cpp'
+  './src/symbol_table.cpp',
+  './src/procedure_table.cpp',
+  './src/module_table.cpp'
 ]
 
 fmt_dep = dependency('fmt')
