@@ -33,7 +33,7 @@ enum class SymbolGroup {
 };
 
 struct Symbol {
-    nodes::Ident name;
+    nodes::QualIdent name;
     SymbolGroup group;
     nodes::TypePtr type;
     size_t count;

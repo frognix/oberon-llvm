@@ -15,7 +15,7 @@ class ModuleTable : public SymbolTable {
 public:
     ModuleTable(nodes::Ident name, nodes::StatementSequence body);
     Error add_imports(nodes::ImportList imports);
-    SemResult<Symbol> get_symbol_out(const nodes::Ident& ident) const;
+    SemResult<Symbol> get_symbol_out(const nodes::QualIdent& ident) const;
     virtual SemResult<Symbol> get_symbol(const nodes::QualIdent& ident) const override;
     virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident) const override;
     virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident) const override;

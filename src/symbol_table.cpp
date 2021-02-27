@@ -51,11 +51,11 @@ Error SymbolTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::T
     if (symbols.contains(ident.ident)) {
         auto symbol = symbols[ident.ident];
         return ErrorBuilder(ident.ident.place).format("Redefinition of symbol {}", ident.ident)
-            .format("{} First definition here", symbol.name.place)
+            .format("{} First definition here", symbol.name.ident.place)
             .format("{} Second definition here", ident.ident.place).build();
     } else {
         Symbol symbol;
-        symbol.name = ident.ident;
+        symbol.name = nodes::QualIdent({}, ident.ident);
         symbol.group = group;
         symbol.type = type;
         symbol.count = 0;

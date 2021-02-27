@@ -13,13 +13,13 @@ Error ModuleTable::add_imports(nodes::ImportList imports) {
     return {};
 }
 
-SemResult<Symbol> ModuleTable::get_symbol_out(const nodes::Ident& ident) const {
-    if (m_exports.contains(ident)) {
-        nodes::QualIdent name{{}, ident};
+SemResult<Symbol> ModuleTable::get_symbol_out(const nodes::QualIdent& ident) const {
+    if (m_exports.contains(ident.ident)) {
+        nodes::QualIdent name{{}, ident.ident};
         return SymbolTable::get_symbol(name);
     } else {
-        return ErrorBuilder(ident.place)
-            .format("Attempting to access a non-exported symbol {}.{}", m_name, ident)
+        return ErrorBuilder(ident.ident.place)
+            .format("Attempting to access a non-exported symbol {}", ident)
             .build();
     }
 }
@@ -31,10 +31,10 @@ SemResult<Symbol> ModuleTable::get_symbol(const nodes::QualIdent& ident) const {
         if (auto res = m_imports.find(*ident.qual); res != m_imports.end()) {
             auto& import = res->second;
             if (import.module == nullptr) {
-                Symbol symbol{ident.ident, SymbolGroup::ANY, nodes::make_type<nodes::AnyType>(), 0};
+                Symbol symbol{ident, SymbolGroup::ANY, nodes::make_type<nodes::AnyType>(), 0};
                 return symbol;
             } else {
-                return import.module->get_symbol_out(ident.ident);
+                return import.module->get_symbol_out(ident);
             }
         } else {
             return ErrorBuilder(m_name.place).format("Import '{}' does not exist", res->second.name).build();
