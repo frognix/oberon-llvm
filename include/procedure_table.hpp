@@ -9,6 +9,9 @@ public:
     virtual SemResult<Symbol> get_symbol(const nodes::QualIdent& ident) const override;
     virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident) const override;
     virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident) const override;
+
+    virtual bool type_extends_base(nodes::QualIdent extension, nodes::QualIdent base) const override;
+
     virtual Error add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) override;
 
 private:

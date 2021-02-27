@@ -1,6 +1,6 @@
 #include "module_table.hpp"
 
-ModuleTable::ModuleTable(nodes::Ident name, nodes::DeclarationSequence body)
+ModuleTable::ModuleTable(nodes::Ident name, nodes::StatementSequence body)
     : SymbolTable(), m_name(name), m_body(body) {}
 
 Error ModuleTable::add_imports(nodes::ImportList imports) {
@@ -75,5 +75,28 @@ Error ModuleTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::T
         return error;
     } else {
         return SymbolTable::add_symbol(ident, group, type);
+    }
+}
+
+bool ModuleTable::type_extends_base(nodes::QualIdent extension, nodes::QualIdent base) const {
+    if (SymbolTable::type_extends_base(extension, base)) return true;
+    if (!extension.qual || !base.qual) return false;
+    auto res1 = m_imports.find(*extension.qual);
+    auto res2 = m_imports.find(*base.qual);
+    if (res1 != m_imports.end() && res2 != m_imports.end()) {
+        if (res1->second.module != nullptr && res2->second.module != nullptr) {
+            if (res1 == res2) {
+                extension.qual = {};
+                base.qual = {};
+                return res1->second.module->type_extends_base(extension, base);
+            } else {
+                extension.qual = {};
+                return res1->second.module->type_extends_base(extension, base);
+            }
+        } else {
+            return true;
+        }
+    } else {
+        return false;
     }
 }

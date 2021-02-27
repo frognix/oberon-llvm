@@ -50,6 +50,26 @@ using TablePtr = std::shared_ptr<SymbolTable>;
 
 using SymbolResult = SemResult<Symbol>;
 
+class TypeHierarchy {
+public:
+    TypeHierarchy() {}
+    void add_extension(nodes::QualIdent extension, nodes::QualIdent base) {
+        m_extended_types[extension] = base;
+    }
+    bool extends(nodes::QualIdent extension, nodes::QualIdent base) const {
+        while (true) {
+            if (auto res = m_extended_types.find(extension); res != m_extended_types.end()) {
+                if (res->second == base) return true;
+                else extension = res->second;
+            } else {
+                return false;
+            }
+        }
+    }
+private:
+    std::unordered_map<nodes::QualIdent, nodes::QualIdent> m_extended_types;
+};
+
 class SymbolTable {
 public:
     SymbolTable();
@@ -60,6 +80,8 @@ public:
     virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident) const;
     virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident) const;
 
+    virtual bool type_extends_base(nodes::QualIdent extension, nodes::QualIdent base) const;
+
     bool has_symbol(const nodes::QualIdent& ident) const { return !get_symbol(ident); }
 
     virtual Error add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type);
@@ -69,5 +91,6 @@ private:
     SymbolMap<Symbol> symbols;
     SymbolMap<nodes::ExpressionPtr> values;
     SymbolMap<TablePtr> tables;
+    TypeHierarchy type_hierarchy;
     nodes::StatementSequence body;
 };

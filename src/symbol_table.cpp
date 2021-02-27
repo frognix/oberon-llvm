@@ -119,3 +119,7 @@ SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident) const 
         }
     }
 }
+
+bool SymbolTable::type_extends_base(nodes::QualIdent extension, nodes::QualIdent base) const {
+    return type_hierarchy.extends(extension, base);
+}

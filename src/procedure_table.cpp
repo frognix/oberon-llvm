@@ -35,3 +35,8 @@ Error ProcedureTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes
         return SymbolTable::add_symbol(ident, group, type);
     }
 }
+
+bool ProcedureTable::type_extends_base(nodes::QualIdent extension, nodes::QualIdent base) const {
+    if (SymbolTable::type_extends_base(extension, base)) return true;
+    return m_parent->type_extends_base(extension, base);
+}
