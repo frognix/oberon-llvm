@@ -4,7 +4,7 @@ ProcedureTable::ProcedureTable(nodes::Ident name, nodes::ProcedureType type, std
                nodes::StatementSequence body, SymbolTable* parent)
     : SymbolTable(), m_name(name), m_type(type), m_ret(ret), m_body(body), m_parent(parent) {}
 
-SemResult<Symbol> ProcedureTable::get_symbol(const nodes::QualIdent& ident) const {
+SemResult<SymbolToken> ProcedureTable::get_symbol(const nodes::QualIdent& ident) const {
     if (ident.qual) {
         return m_parent->get_symbol(ident);
     } else {

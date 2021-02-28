@@ -6,7 +6,7 @@ class ProcedureTable : public SymbolTable {
 public:
     ProcedureTable(nodes::Ident name, nodes::ProcedureType type, std::optional<nodes::ExpressionPtr> ret,
                    nodes::StatementSequence body, SymbolTable* parent);
-    virtual SemResult<Symbol> get_symbol(const nodes::QualIdent& ident) const override;
+    virtual SemResult<SymbolToken> get_symbol(const nodes::QualIdent& ident) const override;
     virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident) const override;
     virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident) const override;
 

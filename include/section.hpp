@@ -4,7 +4,9 @@
 
 namespace nodes {
 
-struct Section : Node {};
+struct Section : Node {
+    virtual ~Section() = default;
+};
 
 // using SectionPtr = OPtr<Section>;
 

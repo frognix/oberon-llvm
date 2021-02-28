@@ -11,6 +11,7 @@ namespace nodes {
 struct Expression : Node {
     virtual TypeResult get_type(const SymbolTable&) const = 0;
     virtual ExprResult eval(const SymbolTable&) const = 0;
+    virtual ~Expression() = default;
 };
 
 template <class Subtype, class... Args>

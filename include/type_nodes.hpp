@@ -65,6 +65,7 @@ struct RecordType : Type {
     }
     bool is_equal(const Type& other) const override;
     Error check(const SymbolTable&) const override;
+    TypeResult has_field(const Ident& ident, const SymbolTable& table) const;
     RecordType(std::optional<QualIdent> b, FieldListSequence s) : basetype(b), seq(s) {}
     std::optional<QualIdent> basetype;
     FieldListSequence seq;
@@ -82,6 +83,13 @@ struct ArrayType : Type {
     std::string to_string() const { return fmt::format("ARRAY {} OF {}", fmt::join(lengths, ", "), type); }
     bool is_equal(const Type& other) const override;
     Error check(const SymbolTable&) const override;
+    TypeResult drop_dimensions(size_t count) const {
+        if (count > lengths.size())
+            return ErrorBuilder(this->place).format("Array of type {} has only {} dimensions", this->to_string(), lengths.size()).build();
+        if (count == lengths.size())
+            return TypePtr(type);
+        return make_type<ArrayType>(std::vector(lengths.begin()+count, lengths.end()), type);
+    }
     ArrayType(std::vector<ExpressionPtr> l, TypePtr t) : lengths(l), type(t) {}
     std::vector<ExpressionPtr> lengths;
     TypePtr type;
@@ -91,6 +99,7 @@ struct FormalType {
     bool array;
     QualIdent ident;
     bool operator == (const FormalType&) const = default;
+    bool equalTo(const TypePtr& type, const SymbolTable& table) const;
 };
 
 struct FPSection {

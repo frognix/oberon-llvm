@@ -13,7 +13,7 @@ Error ModuleTable::add_imports(nodes::ImportList imports) {
     return {};
 }
 
-SemResult<Symbol> ModuleTable::get_symbol_out(const nodes::QualIdent& ident) const {
+SemResult<SymbolToken> ModuleTable::get_symbol_out(const nodes::QualIdent& ident) const {
     if (m_exports.contains(ident.ident)) {
         nodes::QualIdent name{{}, ident.ident};
         return SymbolTable::get_symbol(name);
@@ -24,20 +24,20 @@ SemResult<Symbol> ModuleTable::get_symbol_out(const nodes::QualIdent& ident) con
     }
 }
 
-SemResult<Symbol> ModuleTable::get_symbol(const nodes::QualIdent& ident) const {
+SemResult<SymbolToken> ModuleTable::get_symbol(const nodes::QualIdent& ident) const {
     if (!ident.qual) {
         return SymbolTable::get_symbol(ident);
     } else {
         if (auto res = m_imports.find(*ident.qual); res != m_imports.end()) {
             auto& import = res->second;
             if (import.module == nullptr) {
-                Symbol symbol{ident, SymbolGroup::ANY, nodes::make_type<nodes::AnyType>(), 0};
+                SymbolToken symbol{ident, SymbolGroup::ANY, nodes::make_type<nodes::AnyType>(), 0};
                 return symbol;
             } else {
                 return import.module->get_symbol_out(ident);
             }
         } else {
-            return ErrorBuilder(m_name.place).format("Import '{}' does not exist", res->second.name).build();
+            return ErrorBuilder(ident.qual->place).format("Import '{}' does not exist", *ident.qual).build();
         }
     }
 }

@@ -4,7 +4,9 @@
 
 namespace nodes {
 
-struct Statement : Node {};
+struct Statement : Node {
+    virtual ~Statement() = default;
+};
 
 // using StatementPtr = OPtr<Statement>;
 

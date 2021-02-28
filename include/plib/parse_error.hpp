@@ -13,8 +13,7 @@ struct ParseError {
     ParseError(std::string e, T f, const CodeStream& stream)
         : expected({e}), found(fmt::format("{}", f)), place(stream.place()) {}
     std::string to_string() const {
-        auto str = fmt::format("{} Expected ( {} ), found {}",
-                               format_red(fmt::format("{}:{}:{}:", place.file, place.line, place.column)),
+        auto str = fmt::format("Expected ( {} ), found {}",
                                fmt::join(expected, " or "), found);
         std::string result;
         for (auto elem : str) {

@@ -13,6 +13,7 @@ struct Type : Node {
     }
     virtual bool is_equal(const Type& other) const = 0;
     virtual Error check(const SymbolTable&) const = 0;
+    virtual ~Type() = default;
 };
 
 // using TypePtr = OPtr<Type>;

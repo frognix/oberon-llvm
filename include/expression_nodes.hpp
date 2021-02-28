@@ -6,6 +6,8 @@
 #include "statement.hpp"
 #include <variant>
 
+struct SymbolToken;
+
 namespace nodes {
 
 struct Number : Expression {
@@ -77,6 +79,7 @@ using Selector = std::variant<Ident, ExpList, char, QualIdent>;
 struct Designator {
     QualIdent ident;
     std::vector<Selector> selector;
+    SemResult<SymbolToken> get_symbol(const SymbolTable& table, CodePlace place) const;
 };
 
 struct ProcCall : Expression, Statement {
@@ -86,6 +89,7 @@ struct ProcCall : Expression, Statement {
         else
             return fmt::format("{}", ident);
     }
+    SemResult<SymbolToken> get_info(const SymbolTable& table) const;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
     ProcCall(Designator i, std::optional<ExpList> e) : ident(i), params(e) {}

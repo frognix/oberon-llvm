@@ -25,7 +25,7 @@ struct fmt::formatter<CodePlace> {
     }
     template <typename FormatContext>
     auto format(CodePlace const& id, FormatContext& ctx) {
-        return fmt::format_to(ctx.out(), "{}:{}", id.line, id.column);
+        return fmt::format_to(ctx.out(), "{}:{}:{}", id.file, id.line, id.column);
     }
 };
 

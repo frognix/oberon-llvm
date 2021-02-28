@@ -32,7 +32,7 @@ enum class SymbolGroup {
     TYPE, VAR, CONST, ANY
 };
 
-struct Symbol {
+struct SymbolToken {
     nodes::QualIdent name;
     SymbolGroup group;
     nodes::TypePtr type;
@@ -48,7 +48,7 @@ class SymbolTable;
 
 using TablePtr = std::shared_ptr<SymbolTable>;
 
-using SymbolResult = SemResult<Symbol>;
+using SymbolResult = SemResult<SymbolToken>;
 
 class TypeHierarchy {
 public:
@@ -76,7 +76,7 @@ public:
     virtual ~SymbolTable() {}
     Error parse(const nodes::DeclarationSequence&);
 
-    virtual SemResult<Symbol> get_symbol(const nodes::QualIdent& ident) const;
+    virtual SemResult<SymbolToken> get_symbol(const nodes::QualIdent& ident) const;
     virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident) const;
     virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident) const;
 
@@ -88,7 +88,7 @@ public:
     Error add_value(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value);
     Error add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table);
 private:
-    SymbolMap<Symbol> symbols;
+    SymbolMap<SymbolToken> symbols;
     SymbolMap<nodes::ExpressionPtr> values;
     SymbolMap<TablePtr> tables;
     TypeHierarchy type_hierarchy;

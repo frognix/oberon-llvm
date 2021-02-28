@@ -1,9 +1,22 @@
 #include "parser.hpp"
+#include "module_table.hpp"
 
 #include <chrono>
 
 inline void writeHelp(std::ostream& stream) {
     stream << "Usage: oberon INFILE [OUTFILE]" << std::endl << "With no OUTFILE write to standard output" << std::endl;
+}
+
+void format_error(CodeStream& code, CodePlace place, std::string error) {
+    auto column = place.column;
+    auto length = code.line_length(place.line);
+    int i = int(length) - column - 2;
+    fmt::print("{} {}:\n", format_red("Error on"), place);
+    fmt::print("    {}\n", error);
+    auto line = code.get_line(place.line);
+    fmt::print("{}\n", std::string(line.size(), '-'));
+    fmt::print("{}", line);
+    fmt::print("{}{}{}\n", std::string(column - 3, ' '), format_red("***^***"), std::string(i >= 0 ? i : 0, ' '));
 }
 
 int main(int argc, char* argv[]) {
@@ -36,14 +49,15 @@ int main(int argc, char* argv[]) {
 
     if (res) {
         fmt::print("{}\n", res.get_ok().to_string());
+        ModuleTable table(res.get_ok().name, res.get_ok().body);
+        table.add_imports(res.get_ok().imports);
+        auto semantic = table.parse(res.get_ok().declarations);
+        if (semantic) {
+            format_error(code, semantic->get_place(), semantic->get_string());
+        }
     } else {
         auto error = res.get_err();
-        auto column = error.place.column;
-        auto length = code.line_length(error.place.line);
-        fmt::print("{}", code.get_line(error.place.line));
-        int i = int(length) - column - 2;
-        fmt::print("{}{}{}\n", std::string(column - 3, '-'), format_red("^^^^^"), std::string(i >= 0 ? i : 0, '-'));
-        fmt::print("{}\n", res.get_err().to_string());
+        format_error(code, error.place, error.to_string());
     }
     fmt::print("{}\n", std::string(30, '-'));
     fmt::print("Parse time: {}ms\n", parse_duration.count());

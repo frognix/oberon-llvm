@@ -168,6 +168,26 @@ inline auto node_wrapper(ParserPtr<T> parser) {
     return make_parser(NodeWrapper(parser));
 }
 
+class IdentWrapper : public Parser<Ident> {
+  public:
+    IdentWrapper(ParserPtr<Ident> parser) : m_parser(parser) {}
+    ParseResult<Ident> parse(CodeStream& stream) const noexcept override {
+        auto place = stream.place();
+        if (auto res = m_parser->parse(stream); res) {
+            auto ok = res.get_ok();
+            ok.place = place;
+            return ok;
+        } else
+            return res;
+    }
+  private:
+    ParserPtr<Ident> m_parser;
+};
+
+inline auto ident_wrapper(ParserPtr<Ident> parser) {
+    return make_parser(IdentWrapper(parser));
+}
+
 template <class Base, class... Types>
 inline auto node_either(ParserPtr<Types>... parsers) {
     return node_wrapper(base_either<Base, Types...>(parsers...));
@@ -215,7 +235,7 @@ ParserPtr<Module> get_parser() {
         predicate("letter", [](auto c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); });
     ParserPtr<char> digit = predicate("digit", isdigit);
     ParserPtr<char> hexdigit = predicate("hexdigit", isxdigit);
-    ParserPtr<Ident> identifier = construct<Ident>(chain(letter, many(either({letter, digit}))));
+    ParserPtr<Ident> identifier = ident_wrapper(construct<Ident>(chain(letter, many(either({letter, digit})))));
     ParserPtr<Ident> ident = not_from(identifier, keywords);
 
     auto keyword = [identifier](std::string_view key) {

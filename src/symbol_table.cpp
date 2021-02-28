@@ -54,7 +54,7 @@ Error SymbolTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::T
             .format("{} First definition here", symbol.name.ident.place)
             .format("{} Second definition here", ident.ident.place).build();
     } else {
-        Symbol symbol;
+        SymbolToken symbol;
         symbol.name = nodes::QualIdent({}, ident.ident);
         symbol.group = group;
         symbol.type = type;
@@ -82,13 +82,13 @@ Error SymbolTable::add_table(nodes::IdentDef ident, SymbolGroup group, nodes::Ty
     }
 }
 
-SemResult<Symbol> SymbolTable::get_symbol(const nodes::QualIdent& ident) const {
+SemResult<SymbolToken> SymbolTable::get_symbol(const nodes::QualIdent& ident) const {
     auto error =  ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
     if (ident.qual) {
         return error;
     } else {
         if (auto res = symbols.find(ident.ident); res != symbols.end()) {
-            return Symbol(res->second);
+            return SymbolToken(res->second);
         } else {
             return error;
         }

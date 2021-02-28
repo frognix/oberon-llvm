@@ -8,6 +8,7 @@
 class SemanticError {
 public:
     CodePlace get_place() const { return place; }
+    std::string get_string() const { return error; }
 private:
     SemanticError() {}
     friend class ErrorBuilder;
