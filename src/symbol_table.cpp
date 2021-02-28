@@ -5,19 +5,35 @@ SymbolTable::SymbolTable() {}
 
 Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
     for (auto& decl : seq.constDecls) {
-        if (auto type = decl.expression->get_type(*this); type) {
-            auto error = add_value(decl.ident, SymbolGroup::CONST, type.get_ok(), decl.expression);
+        auto exprError = decl.expression->eval(*this);
+        if (!exprError) return exprError.get_err();
+        auto expr = exprError.get_ok();
+        if (auto type = expr->get_type(*this); type) {
+            auto error = add_value(decl.ident, SymbolGroup::CONST, type.get_ok(), expr);
             if (error) return error;
         } else {
             return type.get_err();
         }
     }
+    std::vector<nodes::TypeDecl> unchecked_types;
     for (auto& decl : seq.typeDecls) {
-        if (auto typeError = decl.type->check(*this); typeError) {
+        Error typeError;
+        if (auto pointer = dynamic_cast<nodes::PointerType*>(decl.type.get()); pointer) {
+            unchecked_types.push_back(decl);
+            typeError = {};
+        } else {
+            typeError = decl.type->check(*this);
+        }
+        if (typeError) {
             return typeError;
         } else {
             auto error = add_symbol(decl.ident, SymbolGroup::TYPE, decl.type);
             if (error) return error;
+        }
+    }
+    for (auto& decl : unchecked_types) {
+        if (auto typeError = symbols[decl.ident.ident].type->check(*this); typeError) {
+            return typeError;
         }
     }
     for (auto& decl : seq.variableDecls) {
@@ -88,6 +104,7 @@ SemResult<SymbolToken> SymbolTable::get_symbol(const nodes::QualIdent& ident) co
         return error;
     } else {
         if (auto res = symbols.find(ident.ident); res != symbols.end()) {
+            const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return SymbolToken(res->second);
         } else {
             return error;
@@ -101,6 +118,7 @@ SemResult<nodes::ExpressionPtr> SymbolTable::get_value(const nodes::QualIdent& i
         return error;
     } else {
         if (auto res = values.find(ident.ident); res != values.end()) {
+            const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return nodes::ExpressionPtr(res->second);
         } else {
             return error;
@@ -113,6 +131,7 @@ SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident) const 
         return error;
     } else {
         if (auto res = tables.find(ident.ident); res != tables.end()) {
+            const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return TablePtr(res->second);
         } else {
             return error;
@@ -122,4 +141,21 @@ SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident) const 
 
 bool SymbolTable::type_extends_base(nodes::QualIdent extension, nodes::QualIdent base) const {
     return type_hierarchy.extends(extension, base);
+}
+
+std::string SymbolTable::to_string() const {
+    std::string result;
+    result += fmt::format("Symbols ({}):\n", symbols.size());
+    for (auto [name, symbol]: symbols) {
+        result += fmt::format("{}: {}\n", name, symbol);
+    }
+    result += fmt::format("Values ({}):\n", values.size());
+    for (auto [name, value]: values) {
+        result += fmt::format("{}: {}\n", name, value->to_string());
+    }
+    result += fmt::format("Tables ({}):\n", tables.size());
+    for (auto [name, table]: tables) {
+        result += fmt::format("{}:\n{}\n", name, table->to_string());
+    }
+    return result;
 }

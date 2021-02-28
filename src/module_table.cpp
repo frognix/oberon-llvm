@@ -16,7 +16,12 @@ Error ModuleTable::add_imports(nodes::ImportList imports) {
 SemResult<SymbolToken> ModuleTable::get_symbol_out(const nodes::QualIdent& ident) const {
     if (m_exports.contains(ident.ident)) {
         nodes::QualIdent name{{}, ident.ident};
-        return SymbolTable::get_symbol(name);
+        auto res = SymbolTable::get_symbol(name);
+        if (res) {
+            auto symbol = res.get_ok();
+            symbol.group = SymbolGroup::CONST;
+            return symbol;
+        } else return res.get_err();
     } else {
         return ErrorBuilder(ident.ident.place)
             .format("Attempting to access a non-exported symbol {}", ident)

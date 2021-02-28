@@ -52,6 +52,7 @@ int main(int argc, char* argv[]) {
         ModuleTable table(res.get_ok().name, res.get_ok().body);
         table.add_imports(res.get_ok().imports);
         auto semantic = table.parse(res.get_ok().declarations);
+        fmt::print("Module table\n{}", table.to_string());
         if (semantic) {
             format_error(code, semantic->get_place(), semantic->get_string());
         }

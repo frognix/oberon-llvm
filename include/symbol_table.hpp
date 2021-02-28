@@ -32,11 +32,33 @@ enum class SymbolGroup {
     TYPE, VAR, CONST, ANY
 };
 
+inline const char* group_to_str(SymbolGroup gr) {
+    switch (gr) {
+    case SymbolGroup::TYPE: return "TYPE";
+    case SymbolGroup::VAR: return "VAR";
+    case SymbolGroup::CONST: return "CONST";
+    case SymbolGroup::ANY: return "ANY";
+    }
+}
+
 struct SymbolToken {
     nodes::QualIdent name;
     SymbolGroup group;
     nodes::TypePtr type;
     size_t count;
+};
+
+template <>
+struct fmt::formatter<SymbolToken> {
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(SymbolToken const& sym, FormatContext& ctx) {
+        return fmt::format_to(ctx.out(), "{{{}, {}, {}, {}}}", sym.name, group_to_str(sym.group), sym.type, sym.count);
+    }
 };
 
 template <class T>
@@ -87,6 +109,8 @@ public:
     virtual Error add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type);
     Error add_value(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value);
     Error add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table);
+
+    std::string to_string() const;
 private:
     SymbolMap<SymbolToken> symbols;
     SymbolMap<nodes::ExpressionPtr> values;

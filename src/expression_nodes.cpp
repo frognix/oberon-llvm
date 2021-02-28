@@ -173,7 +173,10 @@ TypeResult ProcCall::get_type(const SymbolTable& table) const {
     else return symbol.get_err();
 }
 
-ExprResult ProcCall::eval(const SymbolTable&) const {
+ExprResult ProcCall::eval(const SymbolTable& table) const {
+    if (!params && ident.selector.size() == 0) {
+        return table.get_value(ident.ident);
+    }
     return ErrorBuilder(((Expression*)this)->place).format("Selection sequence cannot be constant: {}", this->to_string()).build();
 }
 

@@ -8,7 +8,11 @@ SemResult<SymbolToken> ProcedureTable::get_symbol(const nodes::QualIdent& ident)
     if (ident.qual) {
         return m_parent->get_symbol(ident);
     } else {
-        return SymbolTable::get_symbol(ident);
+        if (auto inner = SymbolTable::get_symbol(ident); !inner) {
+            return m_parent->get_symbol(ident);
+        } else {
+            return inner;
+        }
     }
 }
 
@@ -16,7 +20,11 @@ SemResult<nodes::ExpressionPtr> ProcedureTable::get_value(const nodes::QualIdent
     if (ident.qual) {
         return m_parent->get_value(ident);
     } else {
-        return SymbolTable::get_value(ident);
+        if (auto inner = SymbolTable::get_value(ident); !inner) {
+            return m_parent->get_value(ident);
+        } else {
+            return inner;
+        }
     }
 }
 
@@ -24,7 +32,11 @@ SemResult<TablePtr> ProcedureTable::get_table(const nodes::QualIdent& ident) con
     if (ident.qual) {
         return m_parent->get_table(ident);
     } else {
-        return SymbolTable::get_table(ident);
+        if (auto inner = SymbolTable::get_table(ident); !inner) {
+            return m_parent->get_table(ident);
+        } else {
+            return inner;
+        }
     }
 }
 

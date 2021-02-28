@@ -6,7 +6,7 @@ using namespace nodes;
 inline Error check_type(const QualIdent& ident, const SymbolTable& table) {
     auto res = table.get_symbol(ident);
     if (!res) return res.get_err();
-    if (res.get_ok().group != SymbolGroup::TYPE)
+    if (res.get_ok().group != SymbolGroup::TYPE && res.get_ok().group != SymbolGroup::ANY)
         return ErrorBuilder(ident.ident.place).text("Expected type name").build();
     return {};
 }

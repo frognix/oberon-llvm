@@ -9,7 +9,7 @@ namespace nodes {
 
 struct Type : Node {
     bool operator==(const Type& other) const {
-        return typeid(*this) == typeid(other) && is_equal(other);
+        return typeid(*this) == typeid(other) && (is_equal(other) || other.is_equal(*this));
     }
     virtual bool is_equal(const Type& other) const = 0;
     virtual Error check(const SymbolTable&) const = 0;
