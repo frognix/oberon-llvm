@@ -72,26 +72,17 @@ struct Set : Expression {
     std::vector<SetElement> value;
 };
 
-using ExpList = std::vector<ExpressionPtr>;
-
-using Selector = std::variant<Ident, ExpList, char, QualIdent>;
-
-struct Designator {
-    QualIdent ident;
-    std::vector<Selector> selector;
-    SemResult<SymbolToken> get_symbol(const SymbolTable& table, CodePlace place) const;
-};
-
 struct ProcCall : Expression, Statement {
     std::string to_string() const {
         if (params)
-            return fmt::format("{}({})", ident, fmt::join(*params, ", "));
+            return fmt::format("{}({})", ident.to_string(), fmt::join(*params, ", "));
         else
-            return fmt::format("{}", ident);
+            return fmt::format("{}", ident.to_string());
     }
     SemResult<SymbolToken> get_info(const SymbolTable& table) const;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
+    Error check(const SymbolTable&) const override;
     ProcCall(Designator i, std::optional<ExpList> e) : ident(i), params(e) {}
     Designator ident;
     std::optional<ExpList> params;

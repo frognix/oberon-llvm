@@ -58,7 +58,27 @@ ExprResult Set::eval(const SymbolTable&) const {
     return make_expression<Set>(*this);
 }
 
-SemResult<SymbolToken> Designator::get_symbol(const SymbolTable& table, CodePlace place) const {
+inline SemResult<RecordType*> get_record_from_pointer(Type* some_type, const SymbolTable& table, CodePlace place) {
+    Type* start_type = some_type;
+    if (auto typeName = some_type->is<TypeName>(); typeName) {
+        auto type = typeName->dereference(table);
+        if (!type) return type.get_err();
+        some_type = type.get_ok().get();
+    }
+    if (auto pointer = some_type->is<PointerType>(); pointer) {
+        some_type = pointer->type.get();
+        if (auto typeName = some_type->is<TypeName>(); typeName) {
+            auto type = typeName->dereference(table);
+            if (!type) return type.get_err();
+            some_type = type.get_ok().get();
+        }
+    }
+    auto type = dynamic_cast<RecordType*>(some_type);
+    if (!type) return ErrorBuilder(place).format("Expected record, found {}", start_type->to_string()).build();
+    return type;
+}
+
+SemResult<SymbolToken> ValidDesignator::get_symbol(const SymbolTable& table, CodePlace place) const {
     auto res = table.get_symbol(ident);
     if (!res) {
         return res.get_err();
@@ -71,15 +91,13 @@ SemResult<SymbolToken> Designator::get_symbol(const SymbolTable& table, CodePlac
                 return error.format("Unexpected type name {}", symbol.name).build();
             }
             if (auto ident = std::get_if<Ident>(&sel); ident) {
-                auto type = dynamic_cast<RecordType*>(symbol.type.get());
-                if (type) {
-                    if (auto fType = type->has_field(*ident, table); fType) {
-                        symbol.type = fType.get_ok();
-                    } else {
-                        return error.format("Field {} not found in record {}", *ident, type->to_string()).build();
-                    }
+                auto typeRes = get_record_from_pointer(symbol.type.get(), table, place);
+                if (!typeRes) return typeRes.get_err();
+                auto type = typeRes.get_ok();
+                if (auto fType = type->has_field(*ident, table); fType) {
+                    symbol.type = fType.get_ok();
                 } else {
-                    return error.format("Expected Record, found {}", symbol.type->to_string()).build();
+                    return error.format("Field {} not found in record {}", *ident, type->to_string()).build();
                 }
             } else if (auto ident = std::get_if<ExpList>(&sel); ident) {
                 auto ltype = dynamic_cast<ArrayType*>(symbol.type.get());
@@ -96,10 +114,11 @@ SemResult<SymbolToken> Designator::get_symbol(const SymbolTable& table, CodePlac
                     return error.format("Expected pointer type, found {}", symbol.type->to_string()).build();
                 }
             } else if (auto ident = std::get_if<QualIdent>(&sel); ident) {
-                auto ltype = dynamic_cast<RecordType*>(symbol.type.get());
+                auto ltype = get_record_from_pointer(symbol.type.get(), table, place);
+                if (!ltype) return ltype.get_err();
                 if (auto rsymbol = table.get_symbol(*ident); rsymbol) {
                     if (rsymbol.get_ok().group == SymbolGroup::TYPE) {
-                        if (ltype && table.type_extends_base(rsymbol.get_ok().name, *ident)) {
+                        if (ltype && table.type_extends_base(ltype.get_ok(), *ident)) {
                             symbol.type = rsymbol.get_ok().type;
                         }
                     } else {
@@ -116,8 +135,28 @@ SemResult<SymbolToken> Designator::get_symbol(const SymbolTable& table, CodePlac
     }
 }
 
+SemResult<ValidDesignator> Designator::get(const SymbolTable& table) const {
+    if (!ident.qual) {
+        return ValidDesignator{ident, selector};
+    } else {
+        auto import = table.get_symbol(nodes::QualIdent{{}, *ident.qual}, true);
+        if (!import) return import.get_err();
+        if (import.get_ok().group == SymbolGroup::VAR || import.get_ok().group == SymbolGroup::CONST) {
+            std::vector<Selector> new_selector{ident.ident};
+            new_selector.insert(new_selector.end(), selector.begin(), selector.end());
+            return ValidDesignator{QualIdent{{}, *ident.qual}, new_selector};
+        } else if (import.get_ok().group == SymbolGroup::MODULE) {
+            return ValidDesignator{ident, selector};
+        } else {
+            return ErrorBuilder(ident.qual->place).text("Expected variable or module name").build();
+        }
+    }
+}
+
 SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
-    auto res = ident.get_symbol(table, ((Expression*)this)->place);
+    auto validIdent = ident.get(table);
+    if (!validIdent) return validIdent.get_err();
+    auto res = validIdent.get_ok().get_symbol(table, ((Expression*)this)->place);
     auto error = ErrorBuilder(((Expression*)this)->place);
     if (!res) return res.get_err();
     auto symbol = res.get_ok();
@@ -143,7 +182,7 @@ SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
                     auto exprType = (*expression)->get_type(table);
                     if (!exprType)
                         return exprType.get_err();
-                    if (!section.type.equalTo(exprType.get_ok(), table))
+                    if (*section.type != *exprType.get_ok())
                         return error.format("Expected {}, found {}", section.type, exprType.get_ok()->to_string())
                             .build();
                     expression++;
@@ -174,8 +213,10 @@ TypeResult ProcCall::get_type(const SymbolTable& table) const {
 }
 
 ExprResult ProcCall::eval(const SymbolTable& table) const {
-    if (!params && ident.selector.size() == 0) {
-        return table.get_value(ident.ident);
+    auto validIdent = ident.get(table);
+    if (!validIdent) return validIdent.get_err();
+    if (!params && validIdent.get_ok().selector.size() == 0) {
+        return table.get_value(validIdent.get_ok().ident);
     }
     return ErrorBuilder(((Expression*)this)->place).format("Selection sequence cannot be constant: {}", this->to_string()).build();
 }

@@ -168,17 +168,17 @@ struct fmt::formatter<nodes::Selector> {
     }
 };
 
-template <>
-struct fmt::formatter<nodes::Designator> {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx) {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(nodes::Designator const& id, FormatContext& ctx) {
-        return fmt::format_to(ctx.out(), "{}{}", id.ident, fmt::join(id.selector, ""));
-    }
-};
+// template <>
+// struct fmt::formatter<nodes::Designator> {
+//     template <typename ParseContext>
+//     constexpr auto parse(ParseContext& ctx) {
+//         return ctx.begin();
+//     }
+//     template <typename FormatContext>
+//     auto format(nodes::Designator const& id, FormatContext& ctx) {
+//         return fmt::format_to(ctx.out(), "{}{}", id.ident, fmt::join(id.selector, ""));
+//     }
+// };
 
 template <>
 struct fmt::formatter<nodes::ConstDecl> {
@@ -289,20 +289,20 @@ struct fmt::formatter<nodes::DeclarationSequence> {
     }
 };
 
-template <>
-struct fmt::formatter<nodes::FormalType> {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx) {
-        return ctx.begin();
-    }
-    template <typename FormatContext>
-    auto format(nodes::FormalType const& id, FormatContext& ctx) {
-        if (id.array)
-            return fmt::format_to(ctx.out(), "ARRAY OF {}", id.ident);
-        else
-            return fmt::format_to(ctx.out(), "{}", id.ident);
-    }
-};
+// template <>
+// struct fmt::formatter<nodes::FormalType> {
+//     template <typename ParseContext>
+//     constexpr auto parse(ParseContext& ctx) {
+//         return ctx.begin();
+//     }
+//     template <typename FormatContext>
+//     auto format(nodes::FormalType const& id, FormatContext& ctx) {
+//         if (id.array)
+//             return fmt::format_to(ctx.out(), "ARRAY OF {}", id.ident);
+//         else
+//             return fmt::format_to(ctx.out(), "{}", id.ident);
+//     }
+// };
 
 template <>
 struct fmt::formatter<nodes::FPSection> {
