@@ -15,6 +15,17 @@ Error ModuleTable::add_imports(nodes::ImportList imports) {
     return {};
 }
 
+Error ModuleTable::set_module(ModuleTablePtr module_ptr) {
+    auto res = std::find_if(m_imports.begin(), m_imports.end(), [module_ptr](auto pair){
+        auto [name, module] = pair;
+        return module.name == module_ptr->m_name;
+    });
+    if (res != m_imports.end()) {
+        res->second.module = module_ptr;
+        return {};
+    } else return ErrorBuilder(module_ptr->m_name.place).format("Module {} not imported", module_ptr->m_name).build();
+}
+
 SemResult<SymbolToken> ModuleTable::get_symbol_out(const nodes::QualIdent& ident, bool secretly) const {
     if (m_exports.contains(ident.ident)) {
         nodes::QualIdent name{{}, ident.ident};

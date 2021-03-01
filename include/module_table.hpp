@@ -4,7 +4,7 @@
 
 class ModuleTable;
 
-using ModuleTablePtr = ModuleTable*;
+using ModuleTablePtr = ModuleTable const*;
 
 struct Import {
     nodes::Ident name;
@@ -15,6 +15,7 @@ class ModuleTable : public SymbolTable {
 public:
     ModuleTable(nodes::Ident name, nodes::StatementSequence body);
     Error add_imports(nodes::ImportList imports);
+    Error set_module(ModuleTablePtr module);
     SemResult<SymbolToken> get_symbol_out(const nodes::QualIdent& ident, bool secretly = false) const;
     virtual SemResult<SymbolToken> get_symbol(const nodes::QualIdent& ident, bool secretly = false) const override;
     virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident, bool secretly = false) const override;
