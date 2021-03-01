@@ -17,46 +17,43 @@ Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
     }
     std::vector<nodes::TypeDecl> unchecked_types;
     for (auto& decl : seq.typeDecls) {
-        Error typeError;
+        nodes::TypePtr type;
         if (auto pointer = dynamic_cast<nodes::PointerType*>(decl.type.get()); pointer) {
             unchecked_types.push_back(decl);
-            typeError = {};
+            type = decl.type;
         } else {
-            typeError = decl.type->check(*this);
+            auto res = decl.type->normalize(*this, false);
+            if (!res) return res.get_err();
+            type = res.get_ok();
         }
-        if (typeError) {
-            return typeError;
-        } else {
-            auto error = add_symbol(decl.ident, SymbolGroup::TYPE, decl.type);
-            if (error) return error;
-        }
+        auto error = add_symbol(decl.ident, SymbolGroup::TYPE, type);
+        if (error) return error;
     }
     for (auto& decl : unchecked_types) {
-        if (auto typeError = symbols[decl.ident.ident].type->check(*this); typeError) {
-            return typeError;
-        }
+        auto type = symbols[decl.ident.ident].type;
+        auto err = dynamic_cast<nodes::PointerType*>(type.get())->check_type(*this);
+        if (err) return err;
     }
     for (auto& decl : seq.variableDecls) {
-        if (auto typeError = decl.type->check(*this); typeError) {
-            return typeError;
+        if (auto type = decl.type->normalize(*this, false); !type) {
+            return type.get_err();
         } else {
             for (auto& var : decl.list) {
-                auto error = add_symbol(var, SymbolGroup::VAR, decl.type);
+                auto error = add_symbol(var, SymbolGroup::VAR, type.get_ok());
                 if (error) return error;
             }
         }
     }
     for (auto& _decl : seq.procedureDecls) {
         auto& decl = *dynamic_cast<nodes::ProcedureDeclaration*>(_decl.get());
-        if (auto typeError = decl.type.check(*this); typeError) {
-            return typeError;
+        if (auto type = decl.type.normalize(*this, false); !type) {
+            return type.get_err();
         } else {
-            auto table = std::make_shared<ProcedureTable>(decl.name.ident, decl.type, decl.ret, decl.body, this);
+            auto table = std::make_shared<ProcedureTable>(decl.name.ident, *type.get_ok()->is<nodes::ProcedureType>(), decl.ret, decl.body, this);
             if (auto tableError = table->parse(decl.decls); tableError) {
                 return tableError;
             }
-            nodes::TypePtr typePtr = std::make_shared<nodes::ProcedureType>(decl.type);
-            auto error = add_table(decl.name, SymbolGroup::CONST, typePtr, TablePtr(table));
+            auto error = add_table(decl.name, SymbolGroup::CONST, type.get_ok(), TablePtr(table));
             if (error) return error;
         }
     }
