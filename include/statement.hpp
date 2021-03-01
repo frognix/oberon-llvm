@@ -1,11 +1,15 @@
 #pragma once
 
 #include "node.hpp"
+#include "semantic_error.hpp"
+
+class SymbolTable;
 
 namespace nodes {
 
 struct Statement : Node {
-    virtual ~Statement() = default;
+    virtual Error check(const SymbolTable&) const = 0;
+    virtual ~Statement() {};
 };
 
 // using StatementPtr = OPtr<Statement>;
