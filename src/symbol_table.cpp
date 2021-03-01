@@ -101,13 +101,13 @@ Error SymbolTable::add_table(nodes::IdentDef ident, SymbolGroup group, nodes::Ty
     }
 }
 
-SemResult<SymbolToken> SymbolTable::get_symbol(const nodes::QualIdent& ident) const {
+SemResult<SymbolToken> SymbolTable::get_symbol(const nodes::QualIdent& ident, bool secretly) const {
     auto error =  ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
     if (ident.qual) {
         return error;
     } else {
         if (auto res = symbols.find(ident.ident); res != symbols.end()) {
-            const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
+            if (!secretly) const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return SymbolToken(res->second);
         } else {
             return error;
@@ -115,26 +115,26 @@ SemResult<SymbolToken> SymbolTable::get_symbol(const nodes::QualIdent& ident) co
     }
 }
 
-SemResult<nodes::ExpressionPtr> SymbolTable::get_value(const nodes::QualIdent& ident) const {
+SemResult<nodes::ExpressionPtr> SymbolTable::get_value(const nodes::QualIdent& ident, bool secretly) const {
     auto error =  ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
     if (ident.qual) {
         return error;
     } else {
         if (auto res = values.find(ident.ident); res != values.end()) {
-            const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
+            if (!secretly) const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return nodes::ExpressionPtr(res->second);
         } else {
             return error;
         }
     }
 }
-SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident) const {
+SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident, bool secretly) const {
     auto error =  ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
     if (ident.qual) {
         return error;
     } else {
         if (auto res = tables.find(ident.ident); res != tables.end()) {
-            const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
+            if (!secretly) const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return TablePtr(res->second);
         } else {
             return error;
@@ -142,8 +142,12 @@ SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident) const 
     }
 }
 
-bool SymbolTable::type_extends_base(nodes::QualIdent extension, nodes::QualIdent base) const {
-    return type_hierarchy.extends(extension, base);
+bool SymbolTable::type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const {
+    if (auto isRecord = dynamic_cast<const nodes::RecordType*>(extension); isRecord && isRecord->basetype) {
+        return type_hierarchy.extends(*isRecord->basetype, base);
+    } else if (auto isName = dynamic_cast<const nodes::TypeName*>(extension); isName) {
+        return type_hierarchy.extends(isName->ident, base);
+    } else return false;
 }
 
 std::string SymbolTable::to_string() const {
