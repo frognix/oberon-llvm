@@ -38,8 +38,9 @@ SemResult<SymbolToken> ModuleTable::get_symbol(const nodes::QualIdent& ident, bo
         if (auto res = m_imports.find(*ident.qual); res != m_imports.end()) {
             auto& import = res->second;
             if (import.module == nullptr) {
-                SymbolToken symbol{ident, SymbolGroup::ANY, nodes::make_type<nodes::AnyType>(), 0};
-                return symbol;
+                // SymbolToken symbol{ident, SymbolGroup::ANY, nodes::make_type<nodes::AnyType>(), 0};
+                // return symbol;
+                return ErrorBuilder(ident.qual->place).format("Module {} not found", import.name).build();
             } else {
                 return import.module->get_symbol_out(ident, secretly);
             }

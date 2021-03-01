@@ -6,7 +6,7 @@ using namespace nodes;
 inline Error check_type(const QualIdent& ident, const SymbolTable& table) {
     auto res = table.get_symbol(ident);
     if (!res) return res.get_err();
-    if (res.get_ok().group != SymbolGroup::TYPE && res.get_ok().group != SymbolGroup::ANY)
+    if (res.get_ok().group != SymbolGroup::TYPE)
         return ErrorBuilder(ident.ident.place).text("Expected type name").build();
     return {};
 }
@@ -172,17 +172,17 @@ TypeResult ProcedureType::normalize(const SymbolTable& table, bool normalize_poi
     return make_type<ProcedureType>(copy);
 }
 
-bool AnyType::is_equal(const Type&) const {
-    return true;
-}
+// bool AnyType::is_equal(const Type&) const {
+//     return true;
+// }
 
-Error AnyType::check(const SymbolTable&) const {
-    return {};
-}
+// Error AnyType::check(const SymbolTable&) const {
+//     return {};
+// }
 
-TypeResult AnyType::normalize(const SymbolTable&, bool) {
-    return make_type<AnyType>();
-}
+// TypeResult AnyType::normalize(const SymbolTable&, bool) {
+//     return make_type<AnyType>();
+// }
 
 // bool FormalType::equalTo(const TypePtr& type, const SymbolTable& table) const {
 //     auto _symbol = table.get_symbol(ident);

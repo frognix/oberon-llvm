@@ -29,7 +29,7 @@ struct hash<nodes::QualIdent> {
 } // namespace std
 
 enum class SymbolGroup {
-    TYPE, VAR, CONST, MODULE, ANY
+    TYPE, VAR, CONST, MODULE //, ANY
 };
 
 inline const char* group_to_str(SymbolGroup gr) {
@@ -38,7 +38,7 @@ inline const char* group_to_str(SymbolGroup gr) {
         case SymbolGroup::VAR: return "VAR";
         case SymbolGroup::CONST: return "CONST";
         case SymbolGroup::MODULE: return "MODULE";
-        case SymbolGroup::ANY: return "ANY";
+        // case SymbolGroup::ANY: return "ANY";
         default: throw std::runtime_error("Bad Symbol group");
     }
 }

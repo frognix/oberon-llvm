@@ -156,11 +156,11 @@ struct ProcedureType : Type {
     FormalParameters params;
 };
 
-struct AnyType : Type {
-    std::string to_string() const { return "ANY"; }
-    bool is_equal(const Type& other) const override;
-    Error check(const SymbolTable&) const override;
-    TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
-};
+// struct AnyType : Type {
+//     std::string to_string() const { return "ANY"; }
+//     bool is_equal(const Type& other) const override;
+//     Error check(const SymbolTable&) const override;
+//     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
+// };
 
 }
