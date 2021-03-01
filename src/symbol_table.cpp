@@ -1,7 +1,7 @@
 #include "symbol_table.hpp"
 #include "procedure_table.hpp"
 
-SymbolTable::SymbolTable() {}
+SymbolTable::SymbolTable(nodes::StatementSequence b) : body(b) {}
 
 Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
     for (auto& decl : seq.constDecls) {
@@ -59,6 +59,9 @@ Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
             auto error = add_table(decl.name, SymbolGroup::CONST, typePtr, TablePtr(table));
             if (error) return error;
         }
+    }
+    for (auto& statement : body) {
+        if (auto error = statement->check(*this); error) return error;
     }
     return {};
 }

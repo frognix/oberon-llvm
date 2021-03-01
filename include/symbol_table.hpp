@@ -94,7 +94,7 @@ private:
 
 class SymbolTable {
 public:
-    SymbolTable();
+    SymbolTable(nodes::StatementSequence b);
     virtual ~SymbolTable() {}
     Error parse(const nodes::DeclarationSequence&);
 

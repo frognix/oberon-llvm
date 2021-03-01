@@ -18,6 +18,5 @@ private:
     nodes::Ident m_name;
     nodes::ProcedureType m_type;
     std::optional<nodes::ExpressionPtr> m_ret;
-    nodes::StatementSequence m_body;
     SymbolTable* m_parent;
 };

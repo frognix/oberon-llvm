@@ -27,5 +27,4 @@ private:
     nodes::Ident m_name;
     SymbolMap<Import> m_imports;
     SymbolSet m_exports;
-    nodes::StatementSequence m_body;
 };

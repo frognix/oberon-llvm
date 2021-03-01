@@ -1,7 +1,7 @@
 #include "module_table.hpp"
 
 ModuleTable::ModuleTable(nodes::Ident name, nodes::StatementSequence body)
-    : SymbolTable(), m_name(name), m_body(body) {}
+    : SymbolTable(body), m_name(name) {}
 
 Error ModuleTable::add_imports(nodes::ImportList imports) {
     for (auto& import : imports) {

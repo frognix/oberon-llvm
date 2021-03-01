@@ -2,7 +2,7 @@
 
 ProcedureTable::ProcedureTable(nodes::Ident name, nodes::ProcedureType type, std::optional<nodes::ExpressionPtr> ret,
                nodes::StatementSequence body, SymbolTable* parent)
-    : SymbolTable(), m_name(name), m_type(type), m_ret(ret), m_body(body), m_parent(parent) {}
+    : SymbolTable(body), m_name(name), m_type(type), m_ret(ret), m_parent(parent) {}
 
 SemResult<SymbolToken> ProcedureTable::get_symbol(const nodes::QualIdent& ident) const {
     if (ident.qual) {
