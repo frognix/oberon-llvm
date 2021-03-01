@@ -405,7 +405,7 @@ ParserPtr<Module> get_parser() {
     auto lbl = node_either<Expression>(
         except(number, "integer value", [](const auto& num) { return (bool)std::get_if<Integer>(&num.value); }),
         except(procCall, "simple ident",
-               [](const auto& proc) { return !proc.params && proc.ident.selector.empty() && !proc.ident.ident.qual; }));
+               [](const auto& proc) { return !proc.params && proc.ident.is_simple(); }));
 
     auto caseLabel = construct<CaseLabel>(syntax_sequence(lbl, maybe(syntax_index<1>::select(symbols(".."), lbl))));
 
@@ -439,8 +439,15 @@ ParserPtr<Module> get_parser() {
                         maybe_list(syntax_index<1>::select(keyword("VAR"), extra_delim0(variableDecl, symbol(';')))),
                         maybe_list(extra_delim0(procedureDecl, symbol(';')))));
 
-    auto formalType =
-        construct<FormalType>(syntax_sequence(option(syntax_sequence(keyword("ARRAY"), keyword("OF"))), qualident));
+    ParserPtr<TypePtr> formalType = extension(syntax_sequence(many(syntax_sequence(keyword("ARRAY"), keyword("OF"))), qualident),
+        [](const auto& data) {
+            auto [array, ident] = data;
+            auto typeName = is_base_type(ident.ident) ? make_type<BuiltInType>(ident.ident) : make_type<TypeName>(ident);
+            if (array.size() > 0) {
+                std::vector<ExpressionPtr> vec(array.size(), make_expression<Number>(Integer(1)));
+                return make_type<ArrayType>(vec, typeName, true);
+            } else return typeName;
+        });
 
     auto fpSection = construct<FPSection>(syntax_sequence(maybe(either({keyword("CONST"), keyword("VAR")})),
                                                           extra_delim(ident, symbol(',')),
