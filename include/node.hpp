@@ -7,6 +7,8 @@ namespace nodes {
 
 struct Node {
     CodePlace place;
+    template <class T>
+    const T* is() const { return dynamic_cast<const T*>(this); }
     virtual std::string to_string() const = 0;
     virtual ~Node() {}
 };
