@@ -12,7 +12,6 @@ struct Type : Node {
         return typeid(*this) == typeid(other) && (is_equal(other) || other.is_equal(*this));
     }
     virtual bool is_equal(const Type& other) const = 0;
-    virtual Error check(const SymbolTable&) const = 0;
     virtual TypeResult normalize(const SymbolTable&, bool normalize_pointers) = 0;
     virtual ~Type() = default;
 };

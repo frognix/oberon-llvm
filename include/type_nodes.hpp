@@ -8,7 +8,6 @@ namespace nodes {
 struct BuiltInType : Type {
     std::string to_string() const { return fmt::format("@{}", type); }
     bool is_equal(const Type& other) const override;
-    Error check(const SymbolTable&) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     BuiltInType() : type() {}
     BuiltInType(Ident i) : type(i) {}
@@ -59,7 +58,6 @@ inline bool is_base_type(Ident ident) {
 struct TypeName : Type {
     std::string to_string() const { return ident.to_string(); }
     bool is_equal(const Type& other) const override;
-    Error check(const SymbolTable&) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     TypeResult dereference(const SymbolTable& table) const;
     TypeName(QualIdent i) : ident(i) {}
@@ -76,7 +74,6 @@ struct RecordType : Type {
             return fmt::format("RECORD {} END", seq);
     }
     bool is_equal(const Type& other) const override;
-    Error check(const SymbolTable&) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     TypeResult has_field(const Ident& ident, const SymbolTable& table) const;
     RecordType(std::optional<QualIdent> b, FieldListSequence s) : basetype(b), seq(s) {}
@@ -87,7 +84,6 @@ struct RecordType : Type {
 struct PointerType : Type {
     std::string to_string() const { return fmt::format("POINTER TO {}", type); }
     bool is_equal(const Type& other) const override;
-    Error check(const SymbolTable&) const override;
     Error check_type(const SymbolTable& table);
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     PointerType(TypePtr t) : type(t) {}
@@ -106,7 +102,6 @@ struct ArrayType : Type {
         }
     }
     bool is_equal(const Type& other) const override;
-    Error check(const SymbolTable&) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     TypeResult drop_dimensions(size_t count) const {
         if (count > lengths.size())
@@ -146,7 +141,6 @@ struct FormalParameters {
 struct ProcedureType : Type {
     std::string to_string() const { return fmt::format("PROCEDURE {}", params); }
     bool is_equal(const Type& other) const override;
-    Error check(const SymbolTable&) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     ProcedureType() {}
     ProcedureType(std::optional<FormalParameters> par) {
