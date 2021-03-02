@@ -1,8 +1,9 @@
 #pragma once
 
-#include "section.hpp"
-#include "type.hpp"
 #include "expression.hpp"
+#include "section.hpp"
+#include "type_nodes.hpp"
+#include "statement.hpp"
 
 namespace nodes {
 
@@ -26,15 +27,7 @@ struct DeclarationSequence {
 };
 
 struct ProcedureDeclaration : Section {
-    std::string to_string() const {
-        std::string statements;
-        if (!body.empty())
-            statements = fmt::format("BEGIN\n{}\n", body);
-        std::string ret_str;
-        if (ret)
-            ret_str = fmt::format("RETURN {}\n", *ret);
-        return fmt::format("PROCEDURE {} {};\n{}{}{}END {}", name, type.params, decls, statements, ret_str, name);
-    }
+    std::string to_string() const override;
     ProcedureDeclaration() {}
     ProcedureDeclaration(IdentDef n, ProcedureType t, DeclarationSequence d, StatementSequence b,
                          std::optional<ExpressionPtr> r)
@@ -48,13 +41,7 @@ struct ProcedureDeclaration : Section {
 
 struct Import {
     Import() {}
-    Import(Ident first, std::optional<Ident> second) : name(first) {
-        if (second) {
-            real_name = *second;
-        } else {
-            real_name = name;
-        }
-    }
+    Import(Ident first, std::optional<Ident> second);
     Ident name;
     Ident real_name;
 };
@@ -62,10 +49,7 @@ struct Import {
 using ImportList = std::vector<Import>;
 
 struct Module : Section {
-    std::string to_string() const {
-        return fmt::format("MODULE {}; IMPORT {}\n{}\nBEGIN\n{}\nEND {}.", name, fmt::join(imports, ", "), declarations,
-                           body, name);
-    }
+    std::string to_string() const override;
     Module() {}
     Module(Ident n, ImportList i, DeclarationSequence d, StatementSequence b)
         : name(n), imports(i), declarations(d), body(b) {}
@@ -75,4 +59,4 @@ struct Module : Section {
     StatementSequence body;
 };
 
-}
+} // namespace nodes

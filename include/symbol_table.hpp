@@ -8,14 +8,14 @@ class ProcedureTable;
 
 namespace std {
 
-template<>
+template <>
 struct hash<nodes::Ident> {
     std::size_t operator()(nodes::Ident const& id) const noexcept {
         return std::hash<std::string_view>{}(std::string_view(id.value.data(), id.value.size()));
     }
 };
 
-template<>
+template <>
 struct hash<nodes::QualIdent> {
     std::size_t operator()(nodes::QualIdent const& id) const noexcept {
         if (!id.qual) {
@@ -28,8 +28,12 @@ struct hash<nodes::QualIdent> {
 
 } // namespace std
 
-enum class SymbolGroup {
-    TYPE, VAR, CONST, MODULE //, ANY
+enum class SymbolGroup
+{
+    TYPE,
+    VAR,
+    CONST,
+    MODULE //, ANY
 };
 
 inline const char* group_to_str(SymbolGroup gr) {
@@ -77,20 +81,9 @@ using SymbolResult = SemResult<SymbolToken>;
 class TypeHierarchy {
 public:
     TypeHierarchy() {}
-    void add_extension(nodes::QualIdent extension, nodes::QualIdent base) {
-        m_extended_types[extension] = base;
-    }
-    bool extends(nodes::QualIdent extension, nodes::QualIdent base) const {
-        if (extension == base) return true;
-        while (true) {
-            if (auto res = m_extended_types.find(extension); res != m_extended_types.end()) {
-                if (res->second == base) return true;
-                else extension = res->second;
-            } else {
-                return false;
-            }
-        }
-    }
+    void add_extension(nodes::QualIdent extension, nodes::QualIdent base);
+    bool extends(nodes::QualIdent extension, nodes::QualIdent base) const;
+
 private:
     std::unordered_map<nodes::QualIdent, nodes::QualIdent> m_extended_types;
 };
@@ -114,6 +107,7 @@ public:
     Error add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table);
 
     std::string to_string() const;
+
 private:
     SymbolMap<SymbolToken> symbols;
     SymbolMap<nodes::ExpressionPtr> values;

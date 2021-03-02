@@ -6,9 +6,14 @@
 
 using namespace nodes;
 
+std::string Assignment::to_string() const {
+    return fmt::format("{} := {}", variable.to_string(), value);
+}
+
 Error Assignment::check(const SymbolTable& table) const {
     auto validIdent = variable.get(table);
-    if (!validIdent) return validIdent.get_err();
+    if (!validIdent)
+        return validIdent.get_err();
     auto lsymbol = validIdent.get_ok().get_symbol(table, place);
     if (!lsymbol)
         return lsymbol.get_err();
@@ -30,20 +35,51 @@ Error Assignment::check(const SymbolTable& table) const {
     }
 }
 
+std::string IfStatement::to_string() const {
+    auto [cond, block] = if_blocks[0];
+    std::vector<IfBlock> elsif_blocks = {if_blocks.begin() + 1, if_blocks.end()};
+    if (else_block)
+        return fmt::format("IF {} THEN\n{}\n{}ELSE {}\nEND", cond, block, fmt::join(elsif_blocks, "\n"), *else_block);
+    else
+        return fmt::format("IF {} THEN\n{}\n{}END", cond, block, fmt::join(elsif_blocks, "\n"));
+}
+
 Error IfStatement::check(const SymbolTable&) const {
     return {};
+}
+
+std::string CaseStatement::to_string() const {
+    return fmt::format("CASE {} OF {} END", expression, fmt::join(cases, " |\n"));
 }
 
 Error CaseStatement::check(const SymbolTable&) const {
     return {};
 }
 
+std::string WhileStatement::to_string() const {
+    auto [cond, block] = if_blocks[0];
+    std::vector<IfBlock> elsif_blocks = {if_blocks.begin() + 1, if_blocks.end()};
+    return fmt::format("WHILE {} DO\n{}\n{}END", cond, block, fmt::join(elsif_blocks, "\n"));
+}
+
 Error WhileStatement::check(const SymbolTable&) const {
     return {};
 }
 
+std::string RepeatStatement::to_string() const {
+    auto [cond, block] = if_block;
+    return fmt::format("REPEAT {} UNTIL\n{}", block, cond);
+}
+
 Error RepeatStatement::check(const SymbolTable&) const {
     return {};
+}
+
+std::string ForStatement::to_string() const {
+    if (by_expr)
+        return fmt::format("FOR {} := {} TO {} BY {} DO\n{}\nEND", ident, for_expr, to_expr, *by_expr, block);
+    else
+        return fmt::format("FOR {} := {} TO {} DO\n{}\nEND", ident, for_expr, to_expr, block);
 }
 
 Error ForStatement::check(const SymbolTable&) const {
@@ -56,7 +92,8 @@ std::string CallStatement::to_string() const {
 
 Error CallStatement::check(const SymbolTable& table) const {
     auto info = call.get_info(table);
-    if (!info) return info.get_err();
+    if (!info)
+        return info.get_err();
     if (info.get_ok().type != nullptr)
         return ErrorBuilder(place).text("Expected procedure call without return type").build();
     return {};

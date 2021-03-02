@@ -1,9 +1,9 @@
 #pragma once
 
-#include "semantic_error.hpp"
 #include "expression.hpp"
-#include "type_nodes.hpp"
+#include "semantic_error.hpp"
 #include "statement.hpp"
+#include "type_nodes.hpp"
 #include <variant>
 
 struct SymbolToken;
@@ -11,9 +11,7 @@ struct SymbolToken;
 namespace nodes {
 
 struct Number : Expression {
-    std::string to_string() const {
-        return std::visit([](auto&& arg) { return fmt::format("{}", arg); }, value);
-    }
+    std::string to_string() const override;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
     Number(std::variant<Real, Integer> v) : value(v) {}
@@ -21,12 +19,7 @@ struct Number : Expression {
 };
 
 struct Char : Expression {
-    std::string to_string() const {
-        if (value < ' ' || value > '~')
-            return fmt::format("{}X", (int)value);
-        else
-            return fmt::format("'{}'", value);
-    }
+    std::string to_string() const override;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
     Char(char c) : value(c) {}
@@ -34,7 +27,7 @@ struct Char : Expression {
 };
 
 struct String : Expression {
-    std::string to_string() const { return fmt::format("\"{}\"", fmt::join(value, "")); }
+    std::string to_string() const override;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
     String(std::vector<char> v) : value(v) {}
@@ -42,14 +35,14 @@ struct String : Expression {
 };
 
 struct Nil : Expression {
-    std::string to_string() const { return "NIL"; }
+    std::string to_string() const override;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
     Nil() {}
 };
 
 struct Boolean : Expression {
-    std::string to_string() const { return fmt::format("{}", value); }
+    std::string to_string() const override;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
     Boolean(bool v) : value(v) {}
@@ -62,23 +55,15 @@ struct SetElement {
 };
 
 struct Set : Expression {
-    std::string to_string() const { return fmt::format("{{{}}}", fmt::join(value, ", ")); }
+    std::string to_string() const override;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
-    Set(std::optional<std::vector<SetElement>> v) {
-        if (v)
-            value = *v;
-    }
+    Set(std::optional<std::vector<SetElement>> v);
     std::vector<SetElement> value;
 };
 
 struct ProcCall : Expression {
-    std::string to_string() const {
-        if (params)
-            return fmt::format("{}({})", ident.to_string(), fmt::join(*params, ", "));
-        else
-            return fmt::format("{}", ident.to_string());
-    }
+    std::string to_string() const override;
     SemResult<SymbolToken> get_info(const SymbolTable& table) const;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
@@ -89,7 +74,7 @@ struct ProcCall : Expression {
 };
 
 struct Tilda : Expression {
-    std::string to_string() const { return fmt::format("~{}", expression); }
+    std::string to_string() const override;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
     Tilda(ExpressionPtr ptr) : expression(ptr) {}
@@ -104,37 +89,16 @@ struct Operator {
 };
 
 struct Term : Expression {
-    std::string to_string() const {
-        std::string res = "";
-        if (sign)
-            res += *sign;
-        if (oper)
-            return res + fmt::format("({} {} {})", first, oper->value, *second);
-        else
-            return res + fmt::format("{}", first);
-    }
+    std::string to_string() const override;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
     Term() {}
-    Term(std::optional<char> s, ExpressionPtr f, std::optional<std::tuple<Operator, ExpressionPtr>> sec)
-        : sign(s), first(f) {
-        if (sec) {
-            auto [op, se] = *sec;
-            oper = op;
-            second = se;
-        }
-    }
-    Term(ExpressionPtr f, std::optional<std::tuple<Operator, ExpressionPtr>> sec) : first(f) {
-        if (sec) {
-            auto [op, se] = *sec;
-            oper = op;
-            second = se;
-        }
-    }
+    Term(std::optional<char> s, ExpressionPtr f, std::optional<std::tuple<Operator, ExpressionPtr>> sec);
+    Term(ExpressionPtr f, std::optional<std::tuple<Operator, ExpressionPtr>> sec);
     std::optional<char> sign;
     ExpressionPtr first;
     std::optional<Operator> oper;
     std::optional<ExpressionPtr> second;
 };
 
-}
+} // namespace nodes

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "type.hpp"
 #include "expression.hpp"
+#include "type.hpp"
 
 namespace nodes {
 
 struct BuiltInType : Type {
-    std::string to_string() const { return fmt::format("@{}", type); }
+    std::string to_string() const override;
     bool is_equal(const Type& other) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     BuiltInType() : type() {}
@@ -14,7 +14,7 @@ struct BuiltInType : Type {
     Ident type;
 };
 
-inline TypePtr make_built_in(const char * str) {
+inline TypePtr make_built_in(const char* str) {
     return make_type<BuiltInType>(str_to_ident(str));
 }
 
@@ -47,16 +47,12 @@ inline TypePtr built_in_nil() {
 }
 
 inline bool is_base_type(Ident ident) {
-    return str_to_ident("BOOLEAN") == ident
-        || str_to_ident("CHAR") == ident
-        || str_to_ident("INTEGER") == ident
-        || str_to_ident("REAL") == ident
-        || str_to_ident("BYTE") == ident
-        || str_to_ident("SET") == ident;
+    return str_to_ident("BOOLEAN") == ident || str_to_ident("CHAR") == ident || str_to_ident("INTEGER") == ident ||
+           str_to_ident("REAL") == ident || str_to_ident("BYTE") == ident || str_to_ident("SET") == ident;
 }
 
 struct TypeName : Type {
-    std::string to_string() const { return ident.to_string(); }
+    std::string to_string() const override;
     bool is_equal(const Type& other) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     TypeResult dereference(const SymbolTable& table) const;
@@ -67,12 +63,7 @@ struct TypeName : Type {
 using FieldListSequence = std::vector<FieldList>;
 
 struct RecordType : Type {
-    std::string to_string() const {
-        if (basetype)
-            return fmt::format("RECORD ({}) {} END", *basetype, seq);
-        else
-            return fmt::format("RECORD {} END", seq);
-    }
+    std::string to_string() const override;
     bool is_equal(const Type& other) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     TypeResult has_field(const Ident& ident, const SymbolTable& table) const;
@@ -82,7 +73,7 @@ struct RecordType : Type {
 };
 
 struct PointerType : Type {
-    std::string to_string() const { return fmt::format("POINTER TO {}", type); }
+    std::string to_string() const override;
     bool is_equal(const Type& other) const override;
     Error check_type(const SymbolTable& table);
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
@@ -91,43 +82,21 @@ struct PointerType : Type {
 };
 
 struct ArrayType : Type {
-    std::string to_string() const {
-        if (!unsized)
-            return fmt::format("ARRAY {} OF {}", fmt::join(lengths, ", "), type);
-        else {
-            std::string tmp;
-            for (size_t i = 0; i < lengths.size(); i++)
-                tmp += "ARRAY OF ";
-            return fmt::format("{} {}", tmp, type);
-        }
-    }
+    std::string to_string() const override;
     bool is_equal(const Type& other) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
-    TypeResult drop_dimensions(size_t count) const {
-        if (count > lengths.size())
-            return ErrorBuilder(this->place).format("Array of type {} has only {} dimensions", this->to_string(), lengths.size()).build();
-        if (count == lengths.size())
-            return TypePtr(type);
-        return make_type<ArrayType>(std::vector(lengths.begin()+count, lengths.end()), type);
-    }
+    TypeResult drop_dimensions(size_t count) const;
     ArrayType(std::vector<ExpressionPtr> l, TypePtr t, bool u = false) : lengths(l), type(t), unsized(u) {}
     std::vector<ExpressionPtr> lengths;
     TypePtr type;
     bool unsized;
 };
 
-// struct FormalType {
-//     size_t array;
-//     QualIdent ident;
-//     bool operator == (const FormalType&) const = default;
-//     bool equalTo(const TypePtr& type, const SymbolTable& table) const;
-// };
-
 struct FPSection {
     std::optional<Ident> var;
     std::vector<Ident> idents;
     TypePtr type;
-    bool operator == (const FPSection& other) const {
+    bool operator==(const FPSection& other) const {
         return var == other.var && idents.size() == other.idents.size() && type == other.type;
     }
 };
@@ -135,26 +104,16 @@ struct FPSection {
 struct FormalParameters {
     std::vector<FPSection> sections;
     std::optional<QualIdent> rettype;
-    bool operator == (const FormalParameters&) const = default;
+    bool operator==(const FormalParameters&) const = default;
 };
 
 struct ProcedureType : Type {
-    std::string to_string() const { return fmt::format("PROCEDURE {}", params); }
+    std::string to_string() const override;
     bool is_equal(const Type& other) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     ProcedureType() {}
-    ProcedureType(std::optional<FormalParameters> par) {
-        if (par)
-            params = *par;
-    }
+    ProcedureType(std::optional<FormalParameters> par);
     FormalParameters params;
 };
 
-// struct AnyType : Type {
-//     std::string to_string() const { return "ANY"; }
-//     bool is_equal(const Type& other) const override;
-//     Error check(const SymbolTable&) const override;
-//     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
-// };
-
-}
+} // namespace nodes
