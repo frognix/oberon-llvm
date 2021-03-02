@@ -18,7 +18,7 @@ struct Node {
 struct Ident : public Node {
     Ident() {}
     Ident(std::vector<char> v) : value(v) {}
-    std::string to_string() const override { return fmt::format("{}", value); };
+    std::string to_string() const override { return fmt::format("{}", fmt::join(value, "")); };
     bool operator == (const Ident& other) const { return value == other.value; };
     std::vector<char> value;
 };

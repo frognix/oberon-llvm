@@ -188,9 +188,11 @@ SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
                     expression++;
                 }
             }
-            if (!funcType->params.rettype)
-                return error.format("This procedure call has no type").build();
-            else {
+            if (!funcType->params.rettype) {
+                symbol.type = nullptr;
+                // return error.format("This procedure call has no type").build();
+                return symbol;
+            } else {
                 auto rettype = table.get_symbol(*funcType->params.rettype);
                 if (!rettype)
                     return rettype.get_err();
@@ -208,8 +210,10 @@ SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
 
 TypeResult ProcCall::get_type(const SymbolTable& table) const {
     auto symbol = get_info(table);
-    if (symbol) return symbol.get_ok().type;
-    else return symbol.get_err();
+    if (!symbol) return symbol.get_err();
+    if (symbol.get_ok().type == nullptr)
+        return ErrorBuilder(((Expression*)this)->place).text("This procedure call has no type").build();
+    else return symbol.get_ok().type;
 }
 
 ExprResult ProcCall::eval(const SymbolTable& table) const {
