@@ -154,21 +154,36 @@ SemResult<ValidDesignator> Designator::get(const SymbolTable& table) const {
 }
 
 SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
-    auto validIdent = ident.get(table);
-    if (!validIdent) return validIdent.get_err();
-    auto res = validIdent.get_ok().get_symbol(table, place);
+    auto validIdentRes = ident.get(table);
+    if (!validIdentRes) return validIdentRes.get_err();
+    auto validIdent = validIdentRes.get_ok();
+    //Проверка на правильный парсинг приведения типа
+    //В некоторых случаях это может быть не приведение типа, а вызов функции
+    auto new_params = params;
+    if (validIdent.selector.size() > 0) {
+        auto back_selecter = validIdent.selector.back();
+        if (!params && std::holds_alternative<QualIdent>(back_selecter)) {
+            auto ident = std::get<QualIdent>(back_selecter);
+            auto symRes = table.get_symbol(ident);
+            if (!symRes) return symRes.get_err();
+            if (symRes.get_ok().group != SymbolGroup::TYPE)
+                validIdent.selector.pop_back();
+            new_params = {make_expression<ProcCall>(ident)};
+        }
+    }
+    auto res = validIdent.get_symbol(table, place);
     auto error = ErrorBuilder(place);
     if (!res) return res.get_err();
     auto symbol = res.get_ok();
-    if (!params) {
+    if (!new_params) {
         return symbol;
     } else {
         auto funcType = dynamic_cast<ProcedureType*>(symbol.type.get());
-        auto expression = params->begin();
+        auto expression = new_params->begin();
         if (funcType) {
             for (auto& section : funcType->params.sections) {
                 for (auto& param [[maybe_unused]] : section.idents) {
-                    if (expression == params->end())
+                    if (expression == new_params->end())
                         return error.format("Number of arguments does not match the number of formal parameters")
                             .build();
                     if (section.var) {
@@ -182,9 +197,20 @@ SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
                     auto exprType = (*expression)->get_type(table);
                     if (!exprType)
                         return exprType.get_err();
-                    if (*section.type != *exprType.get_ok())
-                        return error.format("Expected {}, found {}", section.type, exprType.get_ok()->to_string())
-                            .build();
+                    if (*section.type != *exprType.get_ok()) {
+                        auto etype = exprType.get_ok()->is<PointerType>();
+                        auto stype = section.type->is<PointerType>();
+                        TypeName const* ntype = nullptr;
+                        if (stype) ntype = stype->type->is<TypeName>();
+                        if (stype && etype && ntype) {
+                            if (!table.type_extends_base(etype->type.get(), ntype->ident)) {
+                                return error.format("Type {} does not extends type {}", etype->type, stype->type).build();
+                            }
+                        } else {
+                            return error.format("Expected {}, found {}", section.type, exprType.get_ok()->to_string())
+                                .build();
+                        }
+                    }
                     expression++;
                 }
             }

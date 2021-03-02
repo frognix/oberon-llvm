@@ -28,6 +28,9 @@ Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
         }
         auto error = add_symbol(decl.ident, SymbolGroup::TYPE, type);
         if (error) return error;
+        if (auto isRecord = type->is<nodes::RecordType>(); isRecord && isRecord->basetype) {
+            type_hierarchy.add_extension(nodes::QualIdent{{}, decl.ident.ident}, *isRecord->basetype);
+        }
     }
     for (auto& decl : unchecked_types) {
         auto type = symbols[decl.ident.ident].type;

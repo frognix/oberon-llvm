@@ -117,7 +117,8 @@ TypeResult PointerType::normalize(const SymbolTable& table, bool normalize_point
 //! \todo Нормальное сравнение массивов
 bool ArrayType::is_equal(const Type& _other) const {
     auto other = static_cast<const ArrayType&>(_other);
-    return type == other.type && lengths.size() == other.lengths.size();
+    // if (unsized && other.unsized)
+    return *type == *other.type && lengths.size() == other.lengths.size();
 }
 
 Error ArrayType::check(const SymbolTable& table) const {
