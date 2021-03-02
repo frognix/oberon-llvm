@@ -168,10 +168,12 @@ inline auto node_wrapper(ParserPtr<T> parser) {
     return make_parser(NodeWrapper(parser));
 }
 
-class IdentWrapper : public Parser<Ident> {
+
+template <class T>
+class SetPlaceWrapper : public Parser<T> {
   public:
-    IdentWrapper(ParserPtr<Ident> parser) : m_parser(parser) {}
-    ParseResult<Ident> parse(CodeStream& stream) const noexcept override {
+    SetPlaceWrapper(ParserPtr<T> parser) : m_parser(parser) {}
+    ParseResult<T> parse(CodeStream& stream) const noexcept override {
         auto place = stream.place();
         if (auto res = m_parser->parse(stream); res) {
             auto ok = res.get_ok();
@@ -181,11 +183,12 @@ class IdentWrapper : public Parser<Ident> {
             return res;
     }
   private:
-    ParserPtr<Ident> m_parser;
+    ParserPtr<T> m_parser;
 };
 
-inline auto ident_wrapper(ParserPtr<Ident> parser) {
-    return make_parser(IdentWrapper(parser));
+template <class T>
+inline auto set_place(ParserPtr<T> parser) {
+    return make_parser(SetPlaceWrapper(parser));
 }
 
 template <class Base, class... Types>
@@ -235,7 +238,7 @@ ParserPtr<Module> get_parser() {
         predicate("letter", [](auto c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); });
     ParserPtr<char> digit = predicate("digit", isdigit);
     ParserPtr<char> hexdigit = predicate("hexdigit", isxdigit);
-    ParserPtr<Ident> identifier = ident_wrapper(construct<Ident>(chain(letter, many(either({letter, digit})))));
+    ParserPtr<Ident> identifier = set_place(construct<Ident>(chain(letter, many(either({letter, digit})))));
     ParserPtr<Ident> ident = not_from(identifier, keywords);
 
     auto keyword = [identifier](std::string_view key) {
@@ -428,7 +431,7 @@ ParserPtr<Module> get_parser() {
         keyword("FOR"), ident, symbols(":="), expression, keyword("TO"), expression,
         maybe(syntax_index<1>::select(keyword("BY"), expression)), keyword("DO"), statementSequence, keyword("END")));
 
-    statement = node_either<Statement>(assignment, procCall, ifStatement, caseStatement, whileStatement,
+    statement = node_either<Statement>(assignment, construct<CallStatement>(set_place(procCall)), ifStatement, caseStatement, whileStatement,
                                        repeatStatement, forStatement);
 
     ParserPtr<SectionPtr> procedureDecl;

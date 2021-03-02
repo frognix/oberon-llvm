@@ -72,7 +72,7 @@ struct Set : Expression {
     std::vector<SetElement> value;
 };
 
-struct ProcCall : Expression, Statement {
+struct ProcCall : Expression {
     std::string to_string() const {
         if (params)
             return fmt::format("{}({})", ident.to_string(), fmt::join(*params, ", "));
@@ -82,7 +82,6 @@ struct ProcCall : Expression, Statement {
     SemResult<SymbolToken> get_info(const SymbolTable& table) const;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
-    Error check(const SymbolTable&) const override;
     ProcCall(Designator i, std::optional<ExpList> e) : ident(i), params(e) {}
     Designator ident;
     std::optional<ExpList> params;

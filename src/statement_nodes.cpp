@@ -50,10 +50,14 @@ Error ForStatement::check(const SymbolTable&) const {
     return {};
 }
 
-Error ProcCall::check(const SymbolTable& table) const {
-    auto info = get_info(table);
+std::string CallStatement::to_string() const {
+    return fmt::format("{}", call.to_string());
+}
+
+Error CallStatement::check(const SymbolTable& table) const {
+    auto info = call.get_info(table);
     if (!info) return info.get_err();
     if (info.get_ok().type != nullptr)
-        return ErrorBuilder(((Expression*)this)->place).text("Expected procedure call without return type").build();
+        return ErrorBuilder(place).text("Expected procedure call without return type").build();
     return {};
 }

@@ -156,8 +156,8 @@ SemResult<ValidDesignator> Designator::get(const SymbolTable& table) const {
 SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
     auto validIdent = ident.get(table);
     if (!validIdent) return validIdent.get_err();
-    auto res = validIdent.get_ok().get_symbol(table, ((Expression*)this)->place);
-    auto error = ErrorBuilder(((Expression*)this)->place);
+    auto res = validIdent.get_ok().get_symbol(table, place);
+    auto error = ErrorBuilder(place);
     if (!res) return res.get_err();
     auto symbol = res.get_ok();
     if (!params) {
@@ -222,7 +222,7 @@ ExprResult ProcCall::eval(const SymbolTable& table) const {
     if (!params && validIdent.get_ok().selector.size() == 0) {
         return table.get_value(validIdent.get_ok().ident);
     }
-    return ErrorBuilder(((Expression*)this)->place).format("Selection sequence cannot be constant: {}", this->to_string()).build();
+    return ErrorBuilder(place).format("Selection sequence cannot be constant: {}", this->to_string()).build();
 }
 
 TypeResult Tilda::get_type(const SymbolTable& table) const {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "statement.hpp"
-#include "expression.hpp"
+#include "expression_nodes.hpp"
 
 namespace nodes {
 
@@ -84,6 +84,13 @@ struct ForStatement : Statement {
     ExpressionPtr to_expr;
     std::optional<ExpressionPtr> by_expr;
     StatementSequence block;
+};
+
+struct CallStatement : Statement {
+    std::string to_string() const override;
+    Error check(const SymbolTable&) const override;
+    CallStatement(ProcCall c) : call(c) {}
+    ProcCall call;
 };
 
 }
