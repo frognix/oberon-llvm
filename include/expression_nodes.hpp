@@ -68,7 +68,6 @@ struct ProcCall : Expression {
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
     ProcCall(Designator i, std::optional<ExpList> e) : ident(i), params(e) {}
-    ProcCall(QualIdent i) : ident(i, {}), params() {}
     Designator ident;
     std::optional<ExpList> params;
 };

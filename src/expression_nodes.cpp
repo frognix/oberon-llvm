@@ -210,13 +210,14 @@ SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
     if (validIdent.selector.size() > 0) {
         auto back_selecter = validIdent.selector.back();
         if (!params && std::holds_alternative<QualIdent>(back_selecter)) {
-            auto ident = std::get<QualIdent>(back_selecter);
-            auto symRes = table.get_symbol(ident);
-            if (!symRes)
-                return symRes.get_err();
-            if (symRes.get_ok().group != SymbolGroup::TYPE)
+            auto desig = Designator{std::get<QualIdent>(back_selecter), {}};
+            auto vdesig = desig.get(table);
+            if (vdesig) {
+                auto designator = Designator(vdesig.get_ok());
                 validIdent.selector.pop_back();
-            new_params = {make_expression<ProcCall>(ident)};
+                new_params = {make_expression<ProcCall>(designator, std::optional<ExpList>{})};
+            }
+
         }
     }
     auto res = validIdent.get_symbol(table, place);
@@ -273,14 +274,18 @@ SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
                 // return error.format("This procedure call has no type").build();
                 return symbol;
             } else {
-                auto rettype = table.get_symbol(*funcType->params.rettype);
-                if (!rettype)
-                    return rettype.get_err();
-                else {
+                auto type = (*funcType->params.rettype).get();
+                if (auto isBaseType = type->is<BuiltInType>(); isBaseType) {
+                    symbol.type = *funcType->params.rettype;
+                } else if (auto isTypeName = type->is<TypeName>(); isTypeName) {
+                    auto rettype = table.get_symbol(isTypeName->ident);
+                    if (!rettype) return rettype.get_err();
                     symbol.type = rettype.get_ok().type;
-                    symbol.group = SymbolGroup::CONST;
-                    return symbol;
+                } else {
+                    return error.format("Expected base type or type name, found {}", type->to_string()).build();
                 }
+                symbol.group = SymbolGroup::CONST;
+                return symbol;
             }
         } else {
             return error.format("Expected procedure type, found {}", symbol.type.get()->to_string()).build();

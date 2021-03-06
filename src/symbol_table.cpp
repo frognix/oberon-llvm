@@ -104,7 +104,7 @@ Error SymbolTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::T
             .build();
     } else {
         SymbolToken symbol;
-        symbol.name = nodes::QualIdent({}, ident.ident);
+        symbol.name = nodes::QualIdent{{}, ident.ident};
         symbol.group = group;
         symbol.type = type;
         symbol.count = 0;
