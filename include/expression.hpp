@@ -33,6 +33,7 @@ struct ValidDesignator {
 struct Designator {
     Designator() {}
     Designator(QualIdent i, std::vector<Selector> s) : ident(i), selector(s) {}
+    Designator(ValidDesignator d) : ident(d.ident), selector(d.selector) {}
     SemResult<ValidDesignator> get(const SymbolTable&) const;
     std::string to_string() const {return fmt::format("{}{}", ident, fmt::join(selector, ""));}
     bool is_simple() const { return selector.empty() && !ident.qual; }

@@ -103,7 +103,7 @@ struct FPSection {
 
 struct FormalParameters {
     std::vector<FPSection> sections;
-    std::optional<QualIdent> rettype;
+    std::optional<TypePtr> rettype;
     bool operator==(const FormalParameters&) const = default;
 };
 

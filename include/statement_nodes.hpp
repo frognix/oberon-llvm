@@ -23,9 +23,11 @@ struct IfStatement : Statement {
     std::optional<StatementSequence> else_block;
 };
 
+using Label = std::variant<Integer,String,QualIdent>;
+
 struct CaseLabel {
-    ExpressionPtr first;
-    std::optional<ExpressionPtr> second;
+    Label first;
+    std::optional<Label> second;
 };
 
 using CaseLabelList = std::vector<CaseLabel>;

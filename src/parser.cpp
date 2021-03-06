@@ -228,25 +228,86 @@ const std::vector<Ident> keywords = []() {
     return result;
 }();
 
-ParserPtr<Module> get_parser() {
+ParserPtr<char> any = any_func();
+ParserPtr<char> letter =
+    predicate("letter", [](auto c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); });
+ParserPtr<char> digit = predicate("digit", isdigit);
+ParserPtr<char> hexdigit = predicate("hexdigit", isxdigit);
+ParserPtr<Ident> identifier = set_place(construct<Ident>(chain(letter, many(either({letter, digit})))));
+ParserPtr<Ident> ident = not_from(identifier, keywords);
 
-    ParserPtr<TypePtr> type;
-    ParserPtr<ExpressionPtr> expression;
+ParserPtr<Ident> keyword(std::string_view key) {
+    std::vector<char> val({});
+    val.insert(val.begin(), key.begin(), key.end());
+    return no_return(equal_to(identifier, Ident(val)));
+}
 
-    ParserPtr<char> any = any_func();
-    ParserPtr<char> letter =
-        predicate("letter", [](auto c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); });
-    ParserPtr<char> digit = predicate("digit", isdigit);
-    ParserPtr<char> hexdigit = predicate("hexdigit", isxdigit);
-    ParserPtr<Ident> identifier = set_place(construct<Ident>(chain(letter, many(either({letter, digit})))));
-    ParserPtr<Ident> ident = not_from(identifier, keywords);
+ParserPtr<QualIdent> qualident =
+    construct<QualIdent>(sequence(maybe(parse_index<0>::select(ident, symbol('.'))), ident));
 
-    auto keyword = [identifier](std::string_view key) {
-        std::vector<char> val({});
-        val.insert(val.begin(), key.begin(), key.end());
-        return no_return(equal_to(identifier, Ident(val)));
-    };
+ParserPtr<IdentDef> identdef = extension(sequence(ident, maybe(symbol('*'))), [](const auto& pair) {
+    auto [ident, def] = pair;
+    return IdentDef{ident, (bool)def};
+ });
 
+auto type_parser(ParserPtr<TypePtr> type, ParserPtr<ExpressionPtr> expression) {
+    ParserPtr<IdentList> identList = extra_delim(identdef, symbol(','));
+    ParserPtr<FieldList> fieldList = construct<FieldList>(syntax_index<0, 2>::select(identList, symbol(':'), type));
+
+    ParserPtr<BuiltInType> builtInType = construct<BuiltInType>(either({symbols("BOOLEAN"), symbols("CHAR"),
+                symbols("INTEGER"), symbols("REAL"),
+                symbols("BYTE"), symbols("SET")}));
+
+    ParserPtr<TypePtr> typeName = node_either<Type>(builtInType, construct<TypeName>(qualident));
+
+    ParserPtr<FieldListSequence> fieldListSequence = extra_delim(fieldList, symbol(';'));
+
+    ParserPtr<RecordType> recordType =
+        extension(syntax_index<1, 2>::select(keyword("RECORD"),
+                                             maybe(syntax_index<1>::select(symbol('('), qualident, symbol(')'))),
+                                             maybe(fieldListSequence), keyword("END")),
+                  [](const auto& data) {
+                      auto [basetype, fieldList] = data;
+                      if (fieldList)
+                          return RecordType(basetype, *fieldList);
+                      else
+                          return RecordType(basetype, {});
+                  });
+
+    ParserPtr<PointerType> pointerType =
+        construct<PointerType>(syntax_index<2>::select(keyword("POINTER"), keyword("TO"), type));
+
+    ParserPtr<ArrayType> arrayType = construct<ArrayType>(
+        syntax_index<1, 3>::select(keyword("ARRAY"), extra_delim(expression, symbol(',')), keyword("OF"), type));
+
+    ParserPtr<TypePtr> formalType = extension(syntax_sequence(many(syntax_sequence(keyword("ARRAY"), keyword("OF"))), qualident),
+        [](const auto& data) {
+            auto [array, ident] = data;
+            auto typeName = is_base_type(ident.ident) ? make_type<BuiltInType>(ident.ident) : make_type<TypeName>(ident);
+            if (array.size() > 0) {
+                std::vector<ExpressionPtr> vec(array.size(), make_expression<Number>(Integer(1)));
+                return make_type<ArrayType>(vec, typeName, true);
+            } else return typeName;
+        });
+
+    auto fpSection = construct<FPSection>(syntax_sequence(maybe(either({keyword("CONST"), keyword("VAR")})),
+                                                          extra_delim(ident, symbol(',')),
+                                                          syntax_index<1>::select(symbol(':'), formalType)));
+
+    auto formalParameters = construct<FormalParameters>(
+        syntax_index<1, 3>::select(symbol('('), maybe_list(extra_delim(fpSection, symbol(';'))), symbol(')'),
+                                   maybe(syntax_index<1>::select(symbol(':'), typeName))));
+
+    auto procedureType = construct<ProcedureType>(syntax_index<1>::select(keyword("PROCEDURE"), maybe(formalParameters)));
+
+    ParserPtr<TypePtr> strucType = node_either<Type>(recordType, pointerType, arrayType, procedureType);
+
+    type = either({strucType, typeName});
+
+    return std::tuple{formalParameters, fieldList};
+}
+
+auto expression_parser(ParserPtr<ExpressionPtr> expression) {
     ParserPtr<Nil> nil = extension(keyword("NIL"), [](const auto&) { return Nil{}; });
 
     ParserPtr<Boolean> boolean = extension(either({keyword("TRUE"), keyword("FALSE")}), [](const auto& key) {
@@ -303,52 +364,6 @@ ParserPtr<Module> get_parser() {
     ParserPtr<Set> set =
         construct<Set>(syntax_index<1>::select(symbol('{'), maybe(extra_delim(set_element, symbol(','))), symbol('}')));
 
-    ParserPtr<QualIdent> qualident =
-        construct<QualIdent>(sequence(maybe(parse_index<0>::select(ident, symbol('.'))), ident));
-
-    ParserPtr<IdentDef> identdef = extension(sequence(ident, maybe(symbol('*'))), [](const auto& pair) {
-        auto [ident, def] = pair;
-        return IdentDef{ident, (bool)def};
-    });
-
-    ParserPtr<IdentList> identList = extra_delim(identdef, symbol(','));
-
-    ParserPtr<BuiltInType> builtInType = construct<BuiltInType>(either({symbols("BOOLEAN"), symbols("CHAR"),
-                symbols("INTEGER"), symbols("REAL"),
-                symbols("BYTE"), symbols("SET")}));
-
-    ParserPtr<TypePtr> typeName = node_either<Type>(builtInType, construct<TypeName>(qualident));
-
-    ParserPtr<FieldList> fieldList = construct<FieldList>(syntax_index<0, 2>::select(identList, symbol(':'), type));
-
-    auto variableDecl = fieldList;
-
-    ParserPtr<FieldListSequence> fieldListSequence = extra_delim(fieldList, symbol(';'));
-
-    ParserPtr<RecordType> recordType =
-        extension(syntax_index<1, 2>::select(keyword("RECORD"),
-                                             maybe(syntax_index<1>::select(symbol('('), qualident, symbol(')'))),
-                                             maybe(fieldListSequence), keyword("END")),
-                  [](const auto& data) {
-                      auto [basetype, fieldList] = data;
-                      if (fieldList)
-                          return RecordType(basetype, *fieldList);
-                      else
-                          return RecordType(basetype, {});
-                  });
-
-    ParserPtr<PointerType> pointerType =
-        construct<PointerType>(syntax_index<2>::select(keyword("POINTER"), keyword("TO"), type));
-
-    ParserPtr<ArrayType> arrayType = construct<ArrayType>(
-        syntax_index<1, 3>::select(keyword("ARRAY"), extra_delim(expression, symbol(',')), keyword("OF"), type));
-
-    ParserPtr<ProcedureType> procedureType;
-
-    ParserPtr<TypePtr> strucType = node_either<Type>(recordType, pointerType, arrayType, procedureType);
-
-    type = either({strucType, typeName});
-
     ParserPtr<ExpList> expList = extra_delim(expression, symbol(','));
 
     ParserPtr<Designator> designator = construct<Designator>(
@@ -385,16 +400,15 @@ ParserPtr<Module> get_parser() {
                 construct<Operator>(either({symbols("<="), symbols(">=")})),
                 construct<Operator>(either({symbol('<'), symbol('>'), symbol('#'), symbol('=')}))});
 
-    expression = node_either<Expression>(
-        construct<Term>(syntax_sequence(simpleExpression, maybe(syntax_sequence(relation, simpleExpression)))));
+    expression = node_either<Expression>(construct<Term>(syntax_sequence(simpleExpression, maybe(syntax_sequence(relation, simpleExpression)))));
 
-    ParserPtr<ConstDecl> constDecl =
-        construct<ConstDecl>(syntax_index<0, 2>::select(identdef, symbol('='), expression));
+    auto lbl = variant(integer, string, qualident);
 
-    ParserPtr<TypeDecl> typeDecl = construct<TypeDecl>(syntax_index<0, 2>::select(identdef, symbol('='), strucType));
+    return std::tuple{number, procCall, designator, lbl};
+}
 
-    ParserPtr<StatementPtr> statement;
-
+auto statement_parser(ParserPtr<StatementPtr> statement, ParserPtr<ExpressionPtr> expression,
+                      ParserPtr<Label> lbl, ParserPtr<Designator> designator, ParserPtr<ProcCall> procCall) {
     auto assignment = construct<Assignment>(syntax_index<0, 2>::select(designator, symbols(":="), expression));
 
     auto statementSequence = unwrap_maybe_list(extra_delim(maybe(statement), symbol(';')));
@@ -404,11 +418,6 @@ ParserPtr<Module> get_parser() {
     auto ifStatement = construct<IfStatement>(syntax_index<0, 1>::select(
         chain(syntax_index<1, 3>::select(keyword("IF"), expression, keyword("THEN"), statementSequence), many(elsif)),
         maybe(syntax_index<1>::select(keyword("ELSE"), statementSequence)), keyword("END")));
-
-    auto lbl = node_either<Expression>(
-        except(number, "integer value", [](const auto& num) { return (bool)std::get_if<Integer>(&num.value); }),
-        except(procCall, "simple ident",
-               [](const auto& proc) { return !proc.params && proc.ident.is_simple(); }));
 
     auto caseLabel = construct<CaseLabel>(syntax_sequence(lbl, maybe(syntax_index<1>::select(symbols(".."), lbl))));
 
@@ -434,6 +443,19 @@ ParserPtr<Module> get_parser() {
     statement = node_either<Statement>(assignment, construct<CallStatement>(set_place(procCall)), ifStatement, caseStatement, whileStatement,
                                        repeatStatement, forStatement);
 
+    return statementSequence;
+}
+
+auto declarations_parser(ParserPtr<TypePtr> type, ParserPtr<ExpressionPtr> expression,
+                         ParserPtr<FieldList> fieldList, ParserPtr<FormalParameters> formalParameters,
+                         ParserPtr<StatementSequence> statementSequence) {
+    auto variableDecl = fieldList;
+
+    ParserPtr<ConstDecl> constDecl =
+        construct<ConstDecl>(syntax_index<0, 2>::select(identdef, symbol('='), expression));
+
+    ParserPtr<TypeDecl> typeDecl = construct<TypeDecl>(syntax_index<0, 2>::select(identdef, symbol('='), type));
+
     ParserPtr<SectionPtr> procedureDecl;
 
     auto declarationSequence = construct<DeclarationSequence>(
@@ -441,26 +463,6 @@ ParserPtr<Module> get_parser() {
                         maybe_list(syntax_index<1>::select(keyword("TYPE"), extra_delim0(typeDecl, symbol(';')))),
                         maybe_list(syntax_index<1>::select(keyword("VAR"), extra_delim0(variableDecl, symbol(';')))),
                         maybe_list(extra_delim0(procedureDecl, symbol(';')))));
-
-    ParserPtr<TypePtr> formalType = extension(syntax_sequence(many(syntax_sequence(keyword("ARRAY"), keyword("OF"))), qualident),
-        [](const auto& data) {
-            auto [array, ident] = data;
-            auto typeName = is_base_type(ident.ident) ? make_type<BuiltInType>(ident.ident) : make_type<TypeName>(ident);
-            if (array.size() > 0) {
-                std::vector<ExpressionPtr> vec(array.size(), make_expression<Number>(Integer(1)));
-                return make_type<ArrayType>(vec, typeName, true);
-            } else return typeName;
-        });
-
-    auto fpSection = construct<FPSection>(syntax_sequence(maybe(either({keyword("CONST"), keyword("VAR")})),
-                                                          extra_delim(ident, symbol(',')),
-                                                          syntax_index<1>::select(symbol(':'), formalType)));
-
-    auto formalParameters = construct<FormalParameters>(
-        syntax_index<1, 3>::select(symbol('('), maybe_list(extra_delim(fpSection, symbol(';'))), symbol(')'),
-                                   maybe(syntax_index<1>::select(symbol(':'), qualident))));
-
-    procedureType = construct<ProcedureType>(syntax_index<1>::select(keyword("PROCEDURE"), maybe(formalParameters)));
 
     auto procDeclBase = construct<ProcedureDeclaration>(syntax_index<1, 2, 4, 5, 6>::select(
         keyword("PROCEDURE"), identdef, construct<ProcedureType>(maybe(formalParameters)), symbol(';'),
@@ -472,6 +474,11 @@ ParserPtr<Module> get_parser() {
             auto& [proc, ident] = pair;
             return proc.name.ident == ident;
         })));
+
+    return declarationSequence;
+}
+
+auto module_parser(ParserPtr<DeclarationSequence> declarationSequence, ParserPtr<StatementSequence> statementSequence) {
 
     auto import = construct<Import>(syntax_sequence(ident, maybe(syntax_index<1>::select(symbols(":="), ident))));
 
@@ -486,6 +493,24 @@ ParserPtr<Module> get_parser() {
             auto& [mod, ident, dot] = pair;
             return mod.name == ident;
         }));
+
+    return module;
+}
+
+ParserPtr<Module> get_parser() {
+
+    ParserPtr<TypePtr> type;
+    ParserPtr<ExpressionPtr> expression;
+    ParserPtr<StatementPtr> statement;
+
+    auto [number, procCall, designator, lbl] = expression_parser(expression);
+    auto statementSequence = statement_parser(statement, expression, lbl, designator, procCall);
+
+    auto [formalParameters, fieldList] = type_parser(type, expression);
+
+    auto declarationSequence = declarations_parser(type, expression, fieldList, formalParameters, statementSequence);
+
+    auto module = module_parser(declarationSequence, statementSequence);
 
     return module;
 }

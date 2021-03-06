@@ -230,6 +230,18 @@ struct fmt::formatter<nodes::IfBlock> {
 };
 
 template <>
+struct fmt::formatter<nodes::String> {
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx) {
+        return ctx.begin();
+    }
+    template <typename FormatContext>
+    auto format(nodes::String const& id, FormatContext& ctx) {
+        return fmt::format_to(ctx.out(), "{}", id.to_string());
+    }
+};
+
+template <>
 struct fmt::formatter<nodes::CaseLabel> {
     template <typename ParseContext>
     constexpr auto parse(ParseContext& ctx) {
@@ -237,9 +249,10 @@ struct fmt::formatter<nodes::CaseLabel> {
     }
     template <typename FormatContext>
     auto format(nodes::CaseLabel const& id, FormatContext& ctx) {
+        std::string str;
         if (id.second)
-            return fmt::format_to(ctx.out(), "{}..{}", id.first, *id.second);
-        return fmt::format_to(ctx.out(), "{}", id.first);
+            str = std::visit([](auto&& arg) { return fmt::format("{}", arg); }, *id.second);
+        return std::visit([&str,&ctx](auto&& arg) { return fmt::format_to(ctx.out(), "{}..{}", arg, str); }, id.first);
     }
 };
 
