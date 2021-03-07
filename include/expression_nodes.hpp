@@ -62,14 +62,22 @@ struct Set : Expression {
     std::vector<SetElement> value;
 };
 
+struct ProcCallData {
+    DesignatorRepairer ident;
+    std::optional<ExpList> params;
+};
+
+std::optional<SemanticError> proccall_repair(ProcCallData&, const SymbolTable&);
+
+using ProcCallDataRepairer = Repairer<ProcCallData, SymbolTable, SemanticError, proccall_repair>;
+
 struct ProcCall : Expression {
     std::string to_string() const override;
     SemResult<SymbolToken> get_info(const SymbolTable& table) const;
     TypeResult get_type(const SymbolTable& table) const override;
     ExprResult eval(const SymbolTable&) const override;
-    ProcCall(Designator i, std::optional<ExpList> e) : ident(i), params(e) {}
-    Designator ident;
-    std::optional<ExpList> params;
+    ProcCall(DesignatorRepairer i, std::optional<ExpList> e) : data(i, e) {}
+    ProcCallDataRepairer data;
 };
 
 struct Tilda : Expression {

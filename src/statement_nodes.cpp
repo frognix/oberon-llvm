@@ -7,14 +7,14 @@
 using namespace nodes;
 
 std::string Assignment::to_string() const {
-    return fmt::format("{} := {}", variable.to_string(), value);
+    return fmt::format("{} := {}", variable.get().to_string(), value);
 }
 
 Error Assignment::check(const SymbolTable& table) const {
-    auto validIdent = variable.get(table);
-    if (!validIdent)
-        return validIdent.get_err();
-    auto lsymbol = validIdent.get_ok().get_symbol(table, place);
+    auto err = variable.repair(table);
+    if (err) return err;
+    auto validIdent = variable.get();
+    auto lsymbol = validIdent.get_symbol(table, place);
     if (!lsymbol)
         return lsymbol.get_err();
     if (lsymbol.get_ok().group != SymbolGroup::VAR)

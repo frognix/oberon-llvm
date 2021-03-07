@@ -11,9 +11,9 @@ std::string Number::to_string() const {
 
 TypeResult Number::get_type(const SymbolTable&) const {
     if (std::holds_alternative<Real>(value)) {
-        return built_in_real();
+        return make_base_type(BaseType::REAL);
     } else {
-        return built_in_int();
+        return make_base_type(BaseType::INTEGER);
     }
 }
 
@@ -29,7 +29,7 @@ std::string Char::to_string() const {
 }
 
 TypeResult Char::get_type(const SymbolTable&) const {
-    return built_in_char();
+    return make_base_type(BaseType::CHAR);
 }
 
 ExprResult Char::eval(const SymbolTable&) const {
@@ -41,7 +41,7 @@ std::string String::to_string() const {
 }
 
 TypeResult String::get_type(const SymbolTable&) const {
-    auto ch = built_in_char();
+    auto ch = make_base_type(BaseType::CHAR);
     auto size = make_expression<Number>(std::variant<Real, Integer>(Integer(value.size())));
     return make_type<ArrayType>(std::vector{size}, ch);
 }
@@ -55,7 +55,7 @@ std::string Nil::to_string() const {
 }
 
 TypeResult Nil::get_type(const SymbolTable&) const {
-    return built_in_nil();
+    return make_base_type(BaseType::NIL);
 }
 
 ExprResult Nil::eval(const SymbolTable&) const {
@@ -67,7 +67,7 @@ std::string Boolean::to_string() const {
 }
 
 TypeResult Boolean::get_type(const SymbolTable&) const {
-    return built_in_bool();
+    return make_base_type(BaseType::BOOL);
 }
 
 ExprResult Boolean::eval(const SymbolTable&) const {
@@ -79,7 +79,7 @@ std::string Set::to_string() const {
 }
 
 TypeResult Set::get_type(const SymbolTable&) const {
-    return built_in_set();
+    return make_base_type(BaseType::SET);
 }
 
 ExprResult Set::eval(const SymbolTable&) const {
@@ -114,7 +114,7 @@ inline SemResult<RecordType*> get_record_from_pointer(Type* some_type, const Sym
     return type;
 }
 
-SemResult<SymbolToken> ValidDesignator::get_symbol(const SymbolTable& table, CodePlace place) const {
+SemResult<SymbolToken> Designator::get_symbol(const SymbolTable& table, CodePlace place) const {
     auto res = table.get_symbol(ident);
     if (!res) {
         return res.get_err();
@@ -173,67 +173,70 @@ SemResult<SymbolToken> ValidDesignator::get_symbol(const SymbolTable& table, Cod
     }
 }
 
-SemResult<ValidDesignator> Designator::get(const SymbolTable& table) const {
-    if (!ident.qual) {
-        return ValidDesignator{ident, selector};
-    } else {
-        auto import = table.get_symbol(nodes::QualIdent{{}, *ident.qual}, true);
+std::optional<SemanticError> nodes::designator_repair(Designator& value, const SymbolTable& table) {
+    if (value.ident.qual) {
+        auto import = table.get_symbol(nodes::QualIdent{{}, *value.ident.qual}, true);
         if (!import)
             return import.get_err();
         if (import.get_ok().group == SymbolGroup::VAR || import.get_ok().group == SymbolGroup::CONST) {
-            std::vector<Selector> new_selector{ident.ident};
-            new_selector.insert(new_selector.end(), selector.begin(), selector.end());
-            return ValidDesignator{QualIdent{{}, *ident.qual}, new_selector};
-        } else if (import.get_ok().group == SymbolGroup::MODULE) {
-            return ValidDesignator{ident, selector};
-        } else {
-            return ErrorBuilder(ident.qual->place).text("Expected variable or module name").build();
+            std::vector<Selector> new_selector{value.ident.ident};
+            new_selector.insert(new_selector.end(), value.selector.begin(), value.selector.end());
+            value.selector = new_selector;
+            value.ident.ident = *value.ident.qual;
+            value.ident.qual = {};
+        } else if (import.get_ok().group != SymbolGroup::MODULE) {
+            return ErrorBuilder(value.ident.qual->place).text("Expected variable or module name").build();
         }
     }
+    return {};
+}
+
+std::optional<SemanticError> nodes::proccall_repair(ProcCallData& value, const SymbolTable& table) {
+    auto err = value.ident.repair(table);
+    if (err) return err;
+    auto& ident = value.ident.get_mut();
+    if (ident.selector.size() > 0 && !value.params) {
+        auto back_selecter = ident.selector.back();
+        if (!value.params && std::holds_alternative<QualIdent>(back_selecter)) {
+            auto desig = DesignatorRepairer(std::get<QualIdent>(back_selecter), std::vector<Selector>{});
+            auto err = desig.repair(table);
+            if (!err) {
+                ident.selector.pop_back();
+                value.params = {make_expression<ProcCall>(desig.get(), std::optional<ExpList>{})};
+            }
+        }
+    }
+    return {};
 }
 
 std::string ProcCall::to_string() const {
-    if (params)
+    auto params = data.unsafe_get().params;
+    auto ident = data.unsafe_get().ident.unsafe_get();
+    if (data.unsafe_get().params)
         return fmt::format("{}({})", ident.to_string(), fmt::join(*params, ", "));
     else
         return fmt::format("{}", ident.to_string());
 }
 
 SemResult<SymbolToken> ProcCall::get_info(const SymbolTable& table) const {
-    auto validIdentRes = ident.get(table);
-    if (!validIdentRes)
-        return validIdentRes.get_err();
-    auto validIdent = validIdentRes.get_ok();
-    //Проверка на правильный парсинг приведения типа
-    //В некоторых случаях это может быть не приведение типа, а вызов функции
-    auto new_params = params;
-    if (validIdent.selector.size() > 0) {
-        auto back_selecter = validIdent.selector.back();
-        if (!params && std::holds_alternative<QualIdent>(back_selecter)) {
-            auto desig = Designator{std::get<QualIdent>(back_selecter), {}};
-            auto vdesig = desig.get(table);
-            if (vdesig) {
-                auto designator = Designator(vdesig.get_ok());
-                validIdent.selector.pop_back();
-                new_params = {make_expression<ProcCall>(designator, std::optional<ExpList>{})};
-            }
-
-        }
-    }
-    auto res = validIdent.get_symbol(table, place);
+    auto err = data.repair(table);
+    if (err) return SemanticError{*err};
+    auto ident = data.get().ident.get();
+    auto params = data.get().params;
+    auto res = ident.get_symbol(table, place);
     auto error = ErrorBuilder(place);
     if (!res)
         return res.get_err();
     auto symbol = res.get_ok();
-    if (!new_params) {
+    if (!params) {
         return symbol;
     } else {
         auto funcType = dynamic_cast<ProcedureType*>(symbol.type.get());
-        auto expression = new_params->begin();
+        auto expression = params->begin();
         if (funcType) {
             for (auto& section : funcType->params.sections) {
                 for (auto& param [[maybe_unused]] : section.idents) {
-                    if (expression == new_params->end())
+                    if (expression == params->end())
                         return error.format("Number of arguments does not match the number of formal parameters")
                             .build();
                     if (section.var) {
@@ -304,11 +307,11 @@ TypeResult ProcCall::get_type(const SymbolTable& table) const {
 }
 
 ExprResult ProcCall::eval(const SymbolTable& table) const {
-    auto validIdent = ident.get(table);
-    if (!validIdent)
-        return validIdent.get_err();
-    if (!params && validIdent.get_ok().selector.size() == 0) {
-        return table.get_value(validIdent.get_ok().ident);
+    auto err = data.repair(table);
+    if (err) return SemanticError{*err};
+    auto ident = data.get().ident.get();
+    if (!data.get().params && ident.selector.size() == 0) {
+        return table.get_value(ident.ident);
     }
     return ErrorBuilder(place).format("Selection sequence cannot be constant: {}", this->to_string()).build();
 }
@@ -320,7 +323,7 @@ std::string Tilda::to_string() const {
 TypeResult Tilda::get_type(const SymbolTable& table) const {
     auto expr_type = expression->get_type(table);
     if (expr_type) {
-        auto boolean = built_in_bool();
+        auto boolean = make_base_type(BaseType::BOOL);
         if (expr_type.get_ok() == boolean)
             return boolean;
         else

@@ -8,8 +8,8 @@ namespace nodes {
 struct Assignment : Statement {
     std::string to_string() const override;
     virtual Error check(const SymbolTable&) const override;
-    Assignment(Designator var, ExpressionPtr val) : variable(var), value(val) {}
-    Designator variable;
+    Assignment(DesignatorRepairer var, ExpressionPtr val) : variable(var), value(val) {}
+    DesignatorRepairer variable;
     ExpressionPtr value;
 };
 
