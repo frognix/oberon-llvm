@@ -9,13 +9,12 @@ template <class T>
 using ParseResult = Result<T, ParseError>;
 
 template <class T>
-class Parser {
+class Parser : public ReassignI {
   public:
     using ResultType = T;
     using PResult = ParseResult<T>;
     virtual PResult parse(CodeStream& stream) const noexcept = 0;
     inline PResult operator()(CodeStream& stream) const noexcept { return parse(stream); }
-    virtual ~Parser() {}
 };
 
 template <class T>

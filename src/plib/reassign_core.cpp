@@ -38,7 +38,6 @@ void reassign_core::set(counter* counter, class counter* other) noexcept {
     if (counter == other)
         return;
     counter->ptr = other->ptr;
-    count[counter->ptr]++;
 }
 
 reassign_core& reassign_core::get_instance() noexcept {

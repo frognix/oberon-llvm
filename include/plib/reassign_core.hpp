@@ -4,6 +4,11 @@
 #include <queue>
 #include <vector>
 
+class ReassignI {
+public:
+    virtual ~ReassignI() {}
+};
+
 class counter {
   public:
     counter() noexcept : ptr(nullptr) {}
@@ -32,8 +37,6 @@ class reassign_core {
 
     void set(counter* counter, class counter* other) noexcept;
 
-    // counter* move(class counter* other) noexcept {}
-
     template <class T>
     counter* get_new_counter(T&& value) noexcept;
     template <class T>
@@ -50,7 +53,6 @@ class reassign_core {
     counter* get_empty() noexcept;
     static std::unique_ptr<reassign_core> instance;
 
-    std::map<void*, size_t> count;
     std::queue<std::pair<size_t, size_t>> empty;
     std::vector<std::array<counter, 256>*> counters;
 };
@@ -59,7 +61,6 @@ template <class T>
 counter* reassign_core::get_new_counter(T&& value) noexcept {
     auto counter = get_new_counter();
     counter->ptr = new T(std::forward<T>(value));
-    count[counter->ptr] = 1;
     return counter;
 }
 
@@ -76,13 +77,8 @@ void reassign_core::remove(counter* counter) noexcept {
 template <class T>
 void reassign_core::remove_data_ptr(counter* counter) {
     if (counter->ptr != nullptr) {
-        auto& val = count[counter->ptr];
-        val--;
-        if (val == 0) {
-            delete static_cast<T*>(counter->ptr);
-            count.erase(counter->ptr);
-            counter->ptr = nullptr;
-        }
+        delete static_cast<T*>(counter->ptr);
+        counter->ptr = nullptr;
     }
 }
 

@@ -13,10 +13,6 @@ class reassign_ptr {
         reassign_core::get_instance().move<T>(ptr, other.ptr);
         return *this;
     };
-    reassign_ptr& operator=(const reassign_ptr& other) noexcept {
-        reassign_core::get_instance().set(ptr, other.ptr);
-        return *this;
-    };
 
     T& operator*() const noexcept { return *get(); }
     T* operator->() const noexcept { return get(); }
