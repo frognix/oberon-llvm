@@ -5,50 +5,35 @@
 
 namespace nodes {
 
+enum class BaseType {
+    NONE,
+    BOOL,
+    CHAR,
+    INTEGER,
+    REAL,
+    BYTE,
+    SET,
+    NIL
+};
+
 struct BuiltInType : Type {
     std::string to_string() const override;
     bool is_equal(const Type& other) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
+    bool equal_to(BaseType t);
     BuiltInType() : type() {}
-    BuiltInType(Ident i) : type(i) {}
-    Ident type;
+    BuiltInType(Ident i);
+    BuiltInType(BaseType t);
+    BaseType type = BaseType::NONE;
 };
 
-inline TypePtr make_built_in(const char* str) {
-    return make_type<BuiltInType>(str_to_ident(str));
-}
-
-inline TypePtr built_in_bool() {
-    return make_built_in("BOOLEAN");
-}
-
-inline TypePtr built_in_char() {
-    return make_built_in("CHAR");
-}
-
-inline TypePtr built_in_int() {
-    return make_built_in("INTEGER");
-}
-
-inline TypePtr built_in_real() {
-    return make_built_in("REAL");
-}
-
-inline TypePtr built_in_byte() {
-    return make_built_in("BYTE");
-}
-
-inline TypePtr built_in_set() {
-    return make_built_in("SET");
-}
-
-inline TypePtr built_in_nil() {
-    return make_built_in("NIL");
+inline TypePtr make_base_type(BaseType t) {
+    return make_type<BuiltInType>(t);
 }
 
 inline bool is_base_type(Ident ident) {
-    return str_to_ident("BOOLEAN") == ident || str_to_ident("CHAR") == ident || str_to_ident("INTEGER") == ident ||
-           str_to_ident("REAL") == ident || str_to_ident("BYTE") == ident || str_to_ident("SET") == ident;
+    return ident.equal_to("BOOLEAN") || ident.equal_to("CHAR") || ident.equal_to("INTEGER") ||
+           ident.equal_to("REAL") || ident.equal_to("BYTE") || ident.equal_to("SET");
 }
 
 struct TypeName : Type {
@@ -56,7 +41,10 @@ struct TypeName : Type {
     bool is_equal(const Type& other) const override;
     TypeResult normalize(const SymbolTable&, bool normalize_pointers) override;
     TypeResult dereference(const SymbolTable& table) const;
-    TypeName(QualIdent i) : ident(i) {}
+    TypeName(QualIdent i) : ident(i) {
+        if (!i.qual && is_base_type(i.ident))
+            throw std::runtime_error("Internal error: BaseType in TypeName");
+    }
     QualIdent ident;
 };
 

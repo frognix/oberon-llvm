@@ -25,7 +25,7 @@ Error Assignment::check(const SymbolTable& table) const {
     auto lltype = lsymbol.get_ok().type;
     auto rrtype = rtype.get_ok();
     auto rbuiltin = rrtype->is<BuiltInType>();
-    if (*lltype == *rrtype || (lltype->is<PointerType>() && rbuiltin && rbuiltin->type == str_to_ident("NIL"))) {
+    if (*lltype == *rrtype || (lltype->is<PointerType>() && rbuiltin && rbuiltin->type == BaseType::NIL)) {
         return {};
     } else {
         return ErrorBuilder(place)

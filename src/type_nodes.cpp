@@ -13,6 +13,38 @@ inline Error check_type(const QualIdent& ident, const SymbolTable& table) {
     return {};
 }
 
+const char* basetype_to_str(BaseType type) {
+    switch (type) {
+        case BaseType::BOOL: return "BOOL";
+        case BaseType::CHAR: return "CHAR";
+        case BaseType::INTEGER: return "INTEGER";
+        case BaseType::REAL: return "REAL";
+        case BaseType::BYTE: return "BYTE";
+        case BaseType::SET: return "SET";
+        case BaseType::NIL: return "NIL";
+        default: throw std::runtime_error("Internal error: Bad BaseType");
+    }
+}
+
+BaseType ident_to_basetype(Ident i) {
+    if (i.equal_to("BOOLEAN")) return BaseType::BOOL;
+    if (i.equal_to("CHAR")) return BaseType::CHAR;
+    if (i.equal_to("INTEGER")) return BaseType::INTEGER;
+    if (i.equal_to("REAL")) return BaseType::REAL;
+    if (i.equal_to("BYTE")) return BaseType::BYTE;
+    if (i.equal_to("SET")) return BaseType::SET;
+    if (i.equal_to("NIL")) return BaseType::NIL;
+    throw std::runtime_error(fmt::format("Internal error: Bad BaseType ({})", i));
+}
+
+bool BuiltInType::equal_to(BaseType other) {
+    return type == other;
+}
+
+BuiltInType::BuiltInType(Ident i) : type(ident_to_basetype(i)) {}
+
+BuiltInType::BuiltInType(BaseType t) :type(t) {}
+
 std::string BuiltInType::to_string() const {
     return fmt::format("@{}", type);
 }

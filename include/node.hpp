@@ -19,6 +19,13 @@ struct Ident : public Node {
     Ident() {}
     Ident(std::vector<char> v) : value(v) {}
     std::string to_string() const override { return fmt::format("{}", fmt::join(value, "")); };
+    bool equal_to(const char* str) {
+        size_t i = 0;
+        for (;str[i] != '\0'; i++) {
+            if (value[i] != str[i]) return false;
+        }
+        return value.size() == i;
+    }
     bool operator == (const Ident& other) const { return value == other.value; };
     std::vector<char> value;
 };
