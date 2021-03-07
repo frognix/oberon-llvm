@@ -12,3 +12,5 @@ ColumnLimit: 120
 AlwaysBreakTemplateDeclarations: Yes
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortEnumsOnASingleLine: false
+IndentCaseLabels: true
+AllowShortCaseLabelsOnASingleLine: true
