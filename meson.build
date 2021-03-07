@@ -18,7 +18,8 @@ src = [
   './src/procedure_table.cpp',
   './src/module_table.cpp',
   './src/statement_nodes.cpp',
-  './src/section_nodes.cpp'
+  './src/section_nodes.cpp',
+  './src/module_loader.cpp'
 ]
 
 fmt_dep = dependency('fmt')
