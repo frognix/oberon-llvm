@@ -1,5 +1,6 @@
 #pragma once
 
+#include "symbol_table_i.hpp"
 #include "nodes.hpp"
 #include <unordered_map>
 #include <unordered_set>
@@ -28,55 +29,10 @@ struct hash<nodes::QualIdent> {
 
 } // namespace std
 
-enum class SymbolGroup
-{
-    TYPE,
-    VAR,
-    CONST,
-    MODULE //, ANY
-};
-
-inline const char* group_to_str(SymbolGroup gr) {
-    switch (gr) {
-        case SymbolGroup::TYPE: return "TYPE";
-        case SymbolGroup::VAR: return "VAR";
-        case SymbolGroup::CONST: return "CONST";
-        case SymbolGroup::MODULE: return "MODULE";
-        // case SymbolGroup::ANY: return "ANY";
-        default: throw std::runtime_error("Bad Symbol group");
-    }
-}
-
-struct SymbolToken {
-    nodes::QualIdent name;
-    SymbolGroup group;
-    nodes::TypePtr type;
-    size_t count;
-};
-
-template <>
-struct fmt::formatter<SymbolToken> {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx) {
-        return ctx.begin();
-    }
-
-    template <typename FormatContext>
-    auto format(SymbolToken const& sym, FormatContext& ctx) {
-        return fmt::format_to(ctx.out(), "{{{}, {}, {}, {}}}", sym.name, group_to_str(sym.group), sym.type, sym.count);
-    }
-};
-
 template <class T>
 using SymbolMap = std::unordered_map<nodes::Ident, T>;
 
 using SymbolSet = std::unordered_set<nodes::Ident>;
-
-class SymbolTable;
-
-using TablePtr = std::shared_ptr<SymbolTable>;
-
-using SymbolResult = SemResult<SymbolToken>;
 
 class TypeHierarchy {
 public:
@@ -88,25 +44,22 @@ private:
     std::unordered_map<nodes::QualIdent, nodes::QualIdent> m_extended_types;
 };
 
-class SymbolTable {
+class SymbolTable : public SymbolTableI {
 public:
     SymbolTable(nodes::StatementSequence b);
-    virtual ~SymbolTable() {}
     Error parse(const nodes::DeclarationSequence&);
 
-    virtual SemResult<SymbolToken> get_symbol(const nodes::QualIdent& ident, bool secretly = false) const;
-    virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident, bool secretly = false) const;
-    virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident, bool secretly = false) const;
+    virtual SemResult<SymbolToken> get_symbol(const nodes::QualIdent& ident, bool secretly = false) const override;
+    virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident, bool secretly = false) const override;
+    virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident, bool secretly = false) const override;
 
     virtual bool type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const;
 
-    bool has_symbol(const nodes::QualIdent& ident, bool secretly = false) const { return !get_symbol(ident, secretly); }
+    virtual Error add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) override;
+    Error add_value(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value) override;
+    Error add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) override;
 
-    virtual Error add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type);
-    Error add_value(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value);
-    Error add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table);
-
-    std::string to_string() const;
+    std::string to_string() const override;
 
 private:
     SymbolMap<SymbolToken> symbols;
