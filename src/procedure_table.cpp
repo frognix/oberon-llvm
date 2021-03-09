@@ -6,52 +6,61 @@ ProcedureTable::ProcedureTable(nodes::Ident name, nodes::ProcedureType type, std
     for (auto section : m_type.params.sections) {
         auto group = section.var ? SymbolGroup::VAR : SymbolGroup::CONST;
         for (auto ident : section.idents) {
-            auto res = SymbolTable::add_symbol(nodes::IdentDef{ident, false}, group, section.type);
+            MessageManager messages;
+            auto res = SymbolTable::add_symbol(messages, nodes::IdentDef{ident, false}, group, section.type);
+            if (!res) throw std::runtime_error("Internal error, can't add symbol to table");
         }
     }
 }
 
-SemResult<SymbolToken> ProcedureTable::get_symbol(const nodes::QualIdent& ident, bool secretly) const {
+Maybe<SymbolToken> ProcedureTable::get_symbol(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (ident.qual) {
-        return m_parent->get_symbol(ident, secretly);
+        return m_parent->get_symbol(messages, ident, secretly);
     } else {
-        if (auto inner = SymbolTable::get_symbol(ident, secretly); !inner) {
-            return m_parent->get_symbol(ident, secretly);
+        if (!SymbolTable::has_symbol(ident)) {
+            return m_parent->get_symbol(messages, ident, secretly);
         } else {
-            return inner;
+            auto res = SymbolTable::get_symbol(messages, ident, secretly);
+            if (!res) return error;
+            return res;
         }
     }
 }
 
-SemResult<nodes::ExpressionPtr> ProcedureTable::get_value(const nodes::QualIdent& ident, bool secretly) const {
+Maybe<nodes::ExpressionPtr> ProcedureTable::get_value(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (ident.qual) {
-        return m_parent->get_value(ident, secretly);
+        return m_parent->get_value(messages, ident, secretly);
     } else {
-        if (auto inner = SymbolTable::get_value(ident, secretly); !inner) {
-            return m_parent->get_value(ident, secretly);
+        if (!SymbolTable::has_symbol(ident)) {
+            return m_parent->get_value(messages, ident, secretly);
         } else {
-            return inner;
+            auto res = SymbolTable::get_value(messages, ident, secretly);
+            if (!res) return error;
+            return res;
         }
     }
 }
 
-SemResult<TablePtr> ProcedureTable::get_table(const nodes::QualIdent& ident, bool secretly) const {
+Maybe<TablePtr> ProcedureTable::get_table(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (ident.qual) {
-        return m_parent->get_table(ident, secretly);
+        return m_parent->get_table(messages, ident, secretly);
     } else {
-        if (auto inner = SymbolTable::get_table(ident, secretly); !inner) {
-            return m_parent->get_table(ident, secretly);
+        if (!SymbolTable::has_symbol(ident)) {
+            return m_parent->get_table(messages, ident, secretly);
         } else {
-            return inner;
+            auto res = SymbolTable::get_table(messages, ident, secretly);
+            if (!res) return error;
+            return res;
         }
     }
 }
 
-Error ProcedureTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
+bool ProcedureTable::add_symbol(MessageManager& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
     if (ident.def) {
-        return ErrorBuilder(ident.ident.place).format("Cannot export local variable {}", ident.ident).build();
+        messages.addErr(ident.ident.place, "Cannot export local variable {}", ident.ident);
+        return berror;
     } else {
-        return SymbolTable::add_symbol(ident, group, type);
+        return SymbolTable::add_symbol(messages, ident, group, type);
     }
 }
 

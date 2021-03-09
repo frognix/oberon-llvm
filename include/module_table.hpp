@@ -14,16 +14,16 @@ struct Import {
 class ModuleTable : public SymbolTable {
 public:
     ModuleTable(nodes::Ident name, nodes::StatementSequence body);
-    Error add_imports(nodes::ImportList imports);
-    Error set_module(ModuleTablePtr module);
-    SemResult<SymbolToken> get_symbol_out(const nodes::QualIdent& ident, bool secretly = false) const;
-    virtual SemResult<SymbolToken> get_symbol(const nodes::QualIdent& ident, bool secretly = false) const override;
-    virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident, bool secretly = false) const override;
-    virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident, bool secretly = false) const override;
+    bool add_imports(MessageManager&, nodes::ImportList imports);
+    bool set_module(MessageManager&, ModuleTablePtr module);
+    Maybe<SymbolToken> get_symbol_out(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const;
+    virtual Maybe<SymbolToken> get_symbol(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const override;
+    virtual Maybe<nodes::ExpressionPtr> get_value(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const override;
+    virtual Maybe<TablePtr> get_table(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const override;
 
     virtual bool type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const override;
 
-    virtual Error add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) override;
+    virtual bool add_symbol(MessageManager&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) override;
 private:
     nodes::Ident m_name;
     SymbolMap<Import> m_imports;

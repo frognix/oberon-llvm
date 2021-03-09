@@ -1,7 +1,6 @@
 #pragma once
 
 #include "expression.hpp"
-#include "semantic_error.hpp"
 #include "statement.hpp"
 #include "type_nodes.hpp"
 #include <variant>
@@ -12,39 +11,39 @@ namespace nodes {
 
 struct Number : Expression {
     std::string to_string() const override;
-    TypeResult get_type(const SymbolTable& table) const override;
-    ExprResult eval(const SymbolTable&) const override;
+    Maybe<TypePtr> get_type(Context& table) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
     Number(std::variant<Real, Integer> v) : value(v) {}
     std::variant<Real, Integer> value;
 };
 
 struct Char : Expression {
     std::string to_string() const override;
-    TypeResult get_type(const SymbolTable& table) const override;
-    ExprResult eval(const SymbolTable&) const override;
+    Maybe<TypePtr> get_type(Context& table) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
     Char(char c) : value(c) {}
     char value;
 };
 
 struct String : Expression {
     std::string to_string() const override;
-    TypeResult get_type(const SymbolTable& table) const override;
-    ExprResult eval(const SymbolTable&) const override;
+    Maybe<TypePtr> get_type(Context& table) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
     String(std::vector<char> v) : value(v) {}
     std::vector<char> value;
 };
 
 struct Nil : Expression {
     std::string to_string() const override;
-    TypeResult get_type(const SymbolTable& table) const override;
-    ExprResult eval(const SymbolTable&) const override;
+    Maybe<TypePtr> get_type(Context& table) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
     Nil() {}
 };
 
 struct Boolean : Expression {
     std::string to_string() const override;
-    TypeResult get_type(const SymbolTable& table) const override;
-    ExprResult eval(const SymbolTable&) const override;
+    Maybe<TypePtr> get_type(Context& table) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
     Boolean(bool v) : value(v) {}
     bool value;
 };
@@ -56,8 +55,8 @@ struct SetElement {
 
 struct Set : Expression {
     std::string to_string() const override;
-    TypeResult get_type(const SymbolTable& table) const override;
-    ExprResult eval(const SymbolTable&) const override;
+    Maybe<TypePtr> get_type(Context& table) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
     Set(std::optional<std::vector<SetElement>> v);
     std::vector<SetElement> value;
 };
@@ -67,23 +66,23 @@ struct ProcCallData {
     std::optional<ExpList> params;
 };
 
-std::optional<SemanticError> proccall_repair(ProcCallData&, const SymbolTable&);
+bool proccall_repair(ProcCallData&, Context&);
 
-using ProcCallDataRepairer = Repairer<ProcCallData, SymbolTable, SemanticError, proccall_repair>;
+using ProcCallDataRepairer = Repairer<ProcCallData, Context, proccall_repair>;
 
 struct ProcCall : Expression {
     std::string to_string() const override;
-    SemResult<SymbolToken> get_info(const SymbolTable& table) const;
-    TypeResult get_type(const SymbolTable& table) const override;
-    ExprResult eval(const SymbolTable&) const override;
+    Maybe<SymbolToken> get_info(Context& table) const;
+    Maybe<TypePtr> get_type(Context& table) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
     ProcCall(DesignatorRepairer i, std::optional<ExpList> e) : data(i, e) {}
     ProcCallDataRepairer data;
 };
 
 struct Tilda : Expression {
     std::string to_string() const override;
-    TypeResult get_type(const SymbolTable& table) const override;
-    ExprResult eval(const SymbolTable&) const override;
+    Maybe<TypePtr> get_type(Context& table) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
     Tilda(ExpressionPtr ptr) : expression(ptr) {}
     ExpressionPtr expression;
 };
@@ -97,8 +96,8 @@ struct Operator {
 
 struct Term : Expression {
     std::string to_string() const override;
-    TypeResult get_type(const SymbolTable& table) const override;
-    ExprResult eval(const SymbolTable&) const override;
+    Maybe<TypePtr> get_type(Context& table) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
     Term() {}
     Term(std::optional<char> s, ExpressionPtr f, std::optional<std::tuple<Operator, ExpressionPtr>> sec);
     Term(ExpressionPtr f, std::optional<std::tuple<Operator, ExpressionPtr>> sec);

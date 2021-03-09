@@ -3,97 +3,105 @@
 ModuleTable::ModuleTable(nodes::Ident name, nodes::StatementSequence body)
     : SymbolTable(body), m_name(name) {}
 
-Error ModuleTable::add_imports(nodes::ImportList imports) {
+bool ModuleTable::add_imports(MessageManager& messages, nodes::ImportList imports) {
     for (auto& import : imports) {
-        if (auto err = SymbolTable::add_symbol(nodes::IdentDef{import.name, false},
-                                               SymbolGroup::MODULE, nodes::make_type<nodes::TypeName>(nodes::QualIdent{{}, import.name})); !err) {
+        auto res = SymbolTable::add_symbol(messages, nodes::IdentDef{import.name, false},
+                                           SymbolGroup::MODULE, nodes::make_type<nodes::TypeName>(nodes::QualIdent{{}, import.name}));
+        if (res) {
             m_imports[import.name] = Import{import.real_name, nullptr};
         } else {
-            return err;
+            return berror;
         }
     }
-    return {};
+    return bsuccess;
 }
 
-Error ModuleTable::set_module(ModuleTablePtr module_ptr) {
+bool ModuleTable::set_module(MessageManager& messages, ModuleTablePtr module_ptr) {
     auto res = std::find_if(m_imports.begin(), m_imports.end(), [module_ptr](auto pair){
         auto [name, module] = pair;
         return module.name == module_ptr->m_name;
     });
     if (res != m_imports.end()) {
         res->second.module = module_ptr;
-        return {};
-    } else return ErrorBuilder(module_ptr->m_name.place).format("Module {} not imported", module_ptr->m_name).build();
-}
-
-SemResult<SymbolToken> ModuleTable::get_symbol_out(const nodes::QualIdent& ident, bool secretly) const {
-    if (m_exports.contains(ident.ident)) {
-        nodes::QualIdent name{{}, ident.ident};
-        auto res = SymbolTable::get_symbol(name, secretly);
-        if (res) {
-            auto symbol = res.get_ok();
-            symbol.group = SymbolGroup::CONST;
-            return symbol;
-        } else return res.get_err();
+        return bsuccess;
     } else {
-        return ErrorBuilder(ident.ident.place)
-            .format("Attempting to access a non-exported symbol {}", ident)
-            .build();
+        messages.addErr(module_ptr->m_name.place, "Module {} not imported", module_ptr->m_name);
+        return berror;
     }
 }
 
-SemResult<SymbolToken> ModuleTable::get_symbol(const nodes::QualIdent& ident, bool secretly) const {
+Maybe<SymbolToken> ModuleTable::get_symbol_out(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+    if (m_exports.contains(ident.ident)) {
+        nodes::QualIdent name{{}, ident.ident};
+        auto res = SymbolTable::get_symbol(messages, name, secretly);
+        if (res) {
+            auto symbol = *res;
+            symbol.group = SymbolGroup::CONST;
+            return symbol;
+        } else return error;
+    } else {
+        messages.addErr(ident.ident.place, "Attempting to access a non-exported symbol {}", ident);
+        return error;
+    }
+}
+
+Maybe<SymbolToken> ModuleTable::get_symbol(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (!ident.qual) {
-        return SymbolTable::get_symbol(ident, secretly);
+        return SymbolTable::get_symbol(messages, ident, secretly);
     } else {
         if (auto res = m_imports.find(*ident.qual); res != m_imports.end()) {
             auto& import = res->second;
             if (import.module == nullptr) {
-                // SymbolToken symbol{ident, SymbolGroup::ANY, nodes::make_type<nodes::AnyType>(), 0};
-                // return symbol;
-                return ErrorBuilder(ident.qual->place).format("Module {} not found", import.name).build();
+                messages.addErr(ident.qual->place, "Module {} not found", import.name);
+                return error;
             } else {
-                return import.module->get_symbol_out(ident, secretly);
+                return import.module->get_symbol_out(messages, ident, secretly);
             }
         } else {
-            return ErrorBuilder(ident.qual->place).format("Import '{}' does not exist", *ident.qual).build();
+            messages.addErr(ident.qual->place, "Import '{}' does not exist", *ident.qual);
+            return error;
         }
     }
 }
 
-SemResult<nodes::ExpressionPtr> ModuleTable::get_value(const nodes::QualIdent& ident, bool secretly) const {
+Maybe<nodes::ExpressionPtr> ModuleTable::get_value(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (!ident.qual) {
-        return SymbolTable::get_value(ident, secretly);
+        return SymbolTable::get_value(messages, ident, secretly);
     } else {
         if (auto res = m_imports.find(*ident.qual); res != m_imports.end()) {
-            return ErrorBuilder(ident.ident.place).format("Attempting to access outer value {}", ident).build();
+            messages.addErr(ident.ident.place, "Attempting to access outer value {}", ident);
+            return error;
         } else {
-            return ErrorBuilder(m_name.place).format("Import '{}' does not exist", res->second.name).build();
+            messages.addErr(m_name.place, "Import '{}' does not exist", res->second.name);
+            return error;
         }
     }
 }
 
-SemResult<TablePtr> ModuleTable::get_table(const nodes::QualIdent& ident, bool secretly) const {
+Maybe<TablePtr> ModuleTable::get_table(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (!ident.qual) {
-        return SymbolTable::get_table(ident, secretly);
+        return SymbolTable::get_table(messages, ident, secretly);
     } else {
         if (auto res = m_imports.find(*ident.qual); res != m_imports.end()) {
-            return ErrorBuilder(ident.ident.place).format("Attempting to access outer table {}", ident).build();
+            messages.addErr(ident.ident.place, "Attempting to access outer table {}", ident);
+            return error;
         } else {
-            return ErrorBuilder(m_name.place).format("Import '{}' does not exist", res->second.name).build();
+            messages.addErr(m_name.place, "Import '{}' does not exist", res->second.name);
+            return error;
         }
     }
 }
 
-Error ModuleTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
+bool ModuleTable::add_symbol(MessageManager& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
     if (ident.def) {
-        auto error = SymbolTable::add_symbol(ident, group, type);
-        if (!error) {
+        auto res = SymbolTable::add_symbol(messages, ident, group, type);
+        if (res) {
             m_exports.insert(ident.ident);
+            return bsuccess;
         }
-        return error;
+        return berror;
     } else {
-        return SymbolTable::add_symbol(ident, group, type);
+        return SymbolTable::add_symbol(messages, ident, group, type);
     }
 }
 

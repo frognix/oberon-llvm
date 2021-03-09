@@ -234,9 +234,9 @@ inline ParserPtr<char> symbol(char c) {
 }
 
 template <class T>
-class Maybe : public Parser<std::optional<T>> {
+class MaybeParser : public Parser<std::optional<T>> {
   public:
-    Maybe(ParserPtr<T> parser) : m_parser(std::move(parser)) {}
+    MaybeParser(ParserPtr<T> parser) : m_parser(std::move(parser)) {}
     ParseResult<std::optional<T>> parse(CodeStream& stream) const noexcept override {
         BreakPoint point(stream);
         if (auto val = m_parser->parse(stream); val) {
@@ -256,7 +256,7 @@ class Maybe : public Parser<std::optional<T>> {
 
 template <class T>
 inline ParserPtr<std::optional<T>> maybe(ParserPtr<T> p) {
-    return make_parser(Maybe(p));
+    return make_parser(MaybeParser(p));
 }
 
 class Symbols : public Parser<std::vector<char>> {

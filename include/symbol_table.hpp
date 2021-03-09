@@ -44,20 +44,24 @@ private:
     std::unordered_map<nodes::QualIdent, nodes::QualIdent> m_extended_types;
 };
 
+class MessageManager;
+
 class SymbolTable : public SymbolTableI {
 public:
     SymbolTable(nodes::StatementSequence b);
-    Error parse(const nodes::DeclarationSequence&);
+    bool parse(const nodes::DeclarationSequence&, MessageManager&);
 
-    virtual SemResult<SymbolToken> get_symbol(const nodes::QualIdent& ident, bool secretly = false) const override;
-    virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident, bool secretly = false) const override;
-    virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident, bool secretly = false) const override;
+    virtual Maybe<SymbolToken> get_symbol(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const override;
+    virtual Maybe<nodes::ExpressionPtr> get_value(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const override;
+    virtual Maybe<TablePtr> get_table(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const override;
+
+    bool has_symbol(const nodes::QualIdent& ident) const { return symbols.contains(ident.ident); }
 
     virtual bool type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const;
 
-    virtual Error add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) override;
-    Error add_value(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value) override;
-    Error add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) override;
+    virtual bool add_symbol(MessageManager&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) override;
+    bool add_value(MessageManager&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value) override;
+    bool add_table(MessageManager&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) override;
 
     std::string to_string() const override;
 

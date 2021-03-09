@@ -1,4 +1,5 @@
 #include "module_loader.hpp"
+#include "semantic_context.hpp"
 
 std::string format_error(CodeStream& code, CodePlace place, std::string error) {
     auto column = place.column;
@@ -43,21 +44,31 @@ ModuleLoader ModuleLoader::load(std::string name, ParserPtr<nodes::Module> parse
         loader.m_imports.push_back(std::move(res));
     }
     loader.m_module = std::make_unique<ModuleTable>(module.name, module.body);
-    loader.m_module->add_imports(module.imports);
+    MessageManager mm{};
+    if (!loader.m_module->add_imports(mm, module.imports)) {
+        for (auto msg : mm.get_messages()) {
+            error += format_error(code, msg.place, msg.text);
+        }
+        return loader;
+    }
     for (auto& import : loader.m_imports) {
-        auto err = loader.m_module->set_module(import.m_module.get());
-        if (err) {
-            error = format_error(code, err->get_place(), err->get_string());
+        auto res = loader.m_module->set_module(mm, import.m_module.get());
+        if (!res) {
+            for (auto msg : mm.get_messages()) {
+                error += format_error(code, msg.place, msg.text);
+            }
             return loader;
         }
     }
     start = std::chrono::steady_clock::now();
-    auto semError = loader.m_module->parse(module.declarations);
+    auto semRes = loader.m_module->parse(module.declarations, mm);
     end = std::chrono::steady_clock::now();
     parse_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     fmt::print("Module {} semantic check time: {}ms\n", name, parse_duration.count());
-    if (semError) {
-        error = format_error(code, semError->get_place(), semError->get_string());
+    if (!semRes) {
+        for (auto msg : mm.get_messages()) {
+            error += format_error(code, msg.place, msg.text);
+        }
         return loader;
     }
     return loader;

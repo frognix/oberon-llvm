@@ -2,6 +2,7 @@
 #include "expression_nodes.hpp"
 #include "node_formatters.hpp"
 
+#include "semantic_context.hpp"
 #include "symbol_table.hpp"
 
 using namespace nodes;
@@ -10,28 +11,29 @@ std::string Assignment::to_string() const {
     return fmt::format("{} := {}", variable.get().to_string(), value);
 }
 
-Error Assignment::check(const SymbolTable& table) const {
-    auto err = variable.repair(table);
-    if (err) return err;
+bool Assignment::check(Context& context) const {
+    if (!variable.repair(context))
+        return berror;
     auto validIdent = variable.get();
-    auto lsymbol = validIdent.get_symbol(table, place);
+    auto lsymbol = validIdent.get_symbol(context, place);
     if (!lsymbol)
-        return lsymbol.get_err();
-    if (lsymbol.get_ok().group != SymbolGroup::VAR)
-        return ErrorBuilder(this->place).format("Expected variable").build();
-    auto rtype = value->get_type(table);
+        return berror;
+    if (lsymbol->group != SymbolGroup::VAR) {
+        context.messages.addErr(place, "Expected variable");
+        return berror;
+    }
+    auto rtype = value->get_type(context);
     if (!rtype)
-        return rtype.get_err();
-    auto lltype = lsymbol.get_ok().type;
-    auto rrtype = rtype.get_ok();
+        return berror;
+    auto lltype = lsymbol->type;
+    auto rrtype = *rtype;
     auto rbuiltin = rrtype->is<BuiltInType>();
     if (*lltype == *rrtype || (lltype->is<PointerType>() && rbuiltin && rbuiltin->type == BaseType::NIL)) {
-        return {};
+        return bsuccess;
     } else {
-        return ErrorBuilder(place)
-            .format("Incompatible types in assignment: {} and {}", lsymbol.get_ok().type->to_string(),
-                    rtype.get_ok()->to_string())
-            .build();
+        context.messages.addErr(place, "Incompatible types in assignment: {} and {}", lsymbol->type->to_string(),
+                                rtype.value()->to_string());
+        return berror;
     }
 }
 
@@ -44,16 +46,16 @@ std::string IfStatement::to_string() const {
         return fmt::format("IF {} THEN\n{}\n{}END", cond, block, fmt::join(elsif_blocks, "\n"));
 }
 
-Error IfStatement::check(const SymbolTable&) const {
-    return {};
+bool IfStatement::check(Context&) const {
+    return bsuccess;
 }
 
 std::string CaseStatement::to_string() const {
     return fmt::format("CASE {} OF {} END", expression, fmt::join(cases, " |\n"));
 }
 
-Error CaseStatement::check(const SymbolTable&) const {
-    return {};
+bool CaseStatement::check(Context&) const {
+    return bsuccess;
 }
 
 std::string WhileStatement::to_string() const {
@@ -62,8 +64,8 @@ std::string WhileStatement::to_string() const {
     return fmt::format("WHILE {} DO\n{}\n{}END", cond, block, fmt::join(elsif_blocks, "\n"));
 }
 
-Error WhileStatement::check(const SymbolTable&) const {
-    return {};
+bool WhileStatement::check(Context&) const {
+    return bsuccess;
 }
 
 std::string RepeatStatement::to_string() const {
@@ -71,8 +73,8 @@ std::string RepeatStatement::to_string() const {
     return fmt::format("REPEAT {} UNTIL\n{}", block, cond);
 }
 
-Error RepeatStatement::check(const SymbolTable&) const {
-    return {};
+bool RepeatStatement::check(Context&) const {
+    return bsuccess;
 }
 
 std::string ForStatement::to_string() const {
@@ -82,19 +84,21 @@ std::string ForStatement::to_string() const {
         return fmt::format("FOR {} := {} TO {} DO\n{}\nEND", ident, for_expr, to_expr, block);
 }
 
-Error ForStatement::check(const SymbolTable&) const {
-    return {};
+bool ForStatement::check(Context&) const {
+    return bsuccess;
 }
 
 std::string CallStatement::to_string() const {
     return fmt::format("{}", call.to_string());
 }
 
-Error CallStatement::check(const SymbolTable& table) const {
-    auto info = call.get_info(table);
+bool CallStatement::check(Context& context) const {
+    auto info = call.get_info(context);
     if (!info)
-        return info.get_err();
-    if (info.get_ok().type != nullptr)
-        return ErrorBuilder(place).text("Expected procedure call without return type").build();
-    return {};
+        return berror;
+    if (info->type != nullptr) {
+        context.messages.addErr(place, "Expected procedure call without return type");
+        return berror;
+    }
+    return bsuccess;
 }

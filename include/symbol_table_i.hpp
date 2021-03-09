@@ -1,14 +1,14 @@
 #pragma once
 
 #include "plib/result.hpp"
-#include "semantic_error.hpp"
+#include "semantic_context.hpp"
+#include "nodes.hpp"
 
-enum class SymbolGroup
-{
+enum class SymbolGroup {
     TYPE,
     VAR,
     CONST,
-    MODULE //, ANY
+    MODULE
 };
 
 inline const char* group_to_str(SymbolGroup gr) {
@@ -17,7 +17,6 @@ inline const char* group_to_str(SymbolGroup gr) {
         case SymbolGroup::VAR: return "VAR";
         case SymbolGroup::CONST: return "CONST";
         case SymbolGroup::MODULE: return "MODULE";
-        // case SymbolGroup::ANY: return "ANY";
         default: throw std::runtime_error("Bad Symbol group");
     }
 }
@@ -29,7 +28,7 @@ struct SymbolToken {
     size_t count;
 };
 
-using SymbolResult = SemResult<SymbolToken>;
+using SymbolResult = Maybe<SymbolToken>;
 
 template <>
 struct fmt::formatter<SymbolToken> {
@@ -53,13 +52,13 @@ class SymbolTableI {
 public:
     virtual ~SymbolTableI() {}
 
-    virtual SemResult<SymbolToken> get_symbol(const nodes::QualIdent& ident, bool secretly = false) const = 0;
-    virtual SemResult<nodes::ExpressionPtr> get_value(const nodes::QualIdent& ident, bool secretly = false) const = 0;
-    virtual SemResult<TablePtr> get_table(const nodes::QualIdent& ident, bool secretly = false) const = 0;
+    virtual Maybe<SymbolToken> get_symbol(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
+    virtual Maybe<nodes::ExpressionPtr> get_value(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
+    virtual Maybe<TablePtr> get_table(MessageManager&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
 
-    virtual Error add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) = 0;
-    virtual Error add_value(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value) = 0;
-    virtual Error add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) = 0;
+    virtual bool add_symbol(MessageManager&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) = 0;
+    virtual bool add_value(MessageManager&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value) = 0;
+    virtual bool add_table(MessageManager&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) = 0;
 
     virtual std::string to_string() const = 0;
 };

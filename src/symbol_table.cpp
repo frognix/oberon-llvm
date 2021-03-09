@@ -22,18 +22,17 @@ bool TypeHierarchy::extends(nodes::QualIdent extension, nodes::QualIdent base) c
 
 SymbolTable::SymbolTable(nodes::StatementSequence b) : body(b) {}
 
-Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
+bool SymbolTable::parse(const nodes::DeclarationSequence& seq, MessageManager& mm) {
+    auto context = nodes::Context(mm, *this);
     for (auto& decl : seq.constDecls) {
-        auto exprError = decl.expression->eval(*this);
-        if (!exprError)
-            return exprError.get_err();
-        auto expr = exprError.get_ok();
-        if (auto type = expr->get_type(*this); type) {
-            auto error = add_value(decl.ident, SymbolGroup::CONST, type.get_ok(), expr);
-            if (error)
-                return error;
+        auto res = decl.expression->eval(context);
+        if (!res) return berror;
+        auto expr = *res;
+        if (auto type = expr->get_type(context); type) {
+            auto res = add_value(mm, decl.ident, SymbolGroup::CONST, *type, expr);
+            if (!res) return berror;
         } else {
-            return type.get_err();
+            return berror;
         }
     }
     std::vector<nodes::TypeDecl> unchecked_types;
@@ -43,65 +42,59 @@ Error SymbolTable::parse(const nodes::DeclarationSequence& seq) {
             unchecked_types.push_back(decl);
             type = decl.type;
         } else {
-            auto res = decl.type->normalize(*this, false);
-            if (!res)
-                return res.get_err();
-            type = res.get_ok();
+            auto res = decl.type->normalize(context, false);
+            if (!res) return berror;
+            type = *res;
         }
-        auto error = add_symbol(decl.ident, SymbolGroup::TYPE, type);
-        if (error)
-            return error;
+        auto res = add_symbol(mm, decl.ident, SymbolGroup::TYPE, type);
+        if (!res) return berror;
         if (auto isRecord = type->is<nodes::RecordType>(); isRecord && isRecord->basetype) {
             type_hierarchy.add_extension(nodes::QualIdent{{}, decl.ident.ident}, *isRecord->basetype);
         }
     }
     for (auto& decl : unchecked_types) {
         auto type = symbols[decl.ident.ident].type;
-        auto err = dynamic_cast<nodes::PointerType*>(type.get())->check_type(*this);
-        if (err)
-            return err;
+        auto res = dynamic_cast<nodes::PointerType*>(type.get())->check_type(context);
+        if (!res) return berror;
     }
     for (auto& decl : seq.variableDecls) {
-        if (auto type = decl.type->normalize(*this, false); !type) {
-            return type.get_err();
+        if (auto type = decl.type->normalize(context, false); !type) {
+            return berror;
         } else {
             for (auto& var : decl.list) {
-                auto error = add_symbol(var, SymbolGroup::VAR, type.get_ok());
-                if (error)
-                    return error;
+                auto res = add_symbol(mm, var, SymbolGroup::VAR, *type);
+                if (!res) return berror;
             }
         }
     }
     for (auto& _decl : seq.procedureDecls) {
         auto& decl = *dynamic_cast<nodes::ProcedureDeclaration*>(_decl.get());
-        if (auto type = decl.type.normalize(*this, false); !type) {
-            return type.get_err();
+        if (auto type = decl.type.normalize(context, false); !type) {
+            return berror;
         } else {
-            auto table = std::make_shared<ProcedureTable>(decl.name.ident, *type.get_ok()->is<nodes::ProcedureType>(),
+            auto table = std::make_shared<ProcedureTable>(decl.name.ident, *type.value()->is<nodes::ProcedureType>(),
                                                           decl.ret, decl.body, this);
-            if (auto tableError = table->parse(decl.decls); tableError) {
-                return tableError;
+            if (auto res = table->parse(decl.decls, mm); !res) {
+                return berror;
             }
-            auto error = add_table(decl.name, SymbolGroup::CONST, type.get_ok(), TablePtr(table));
-            if (error)
-                return error;
+            auto res = add_table(mm, decl.name, SymbolGroup::CONST, *type, TablePtr(table));
+            if (!res) return berror;
         }
     }
     for (auto& statement : body) {
-        if (auto error = statement->check(*this); error)
-            return error;
+        if (auto res = statement->check(context); !res)
+            return berror;
     }
-    return {};
+    return bsuccess;
 }
 
-Error SymbolTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
+bool SymbolTable::add_symbol(MessageManager& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
     if (symbols.contains(ident.ident)) {
         auto symbol = symbols[ident.ident];
-        return ErrorBuilder(ident.ident.place)
-            .format("Redefinition of symbol {}", ident.ident)
-            .format("{} First definition here", symbol.name.ident.place)
-            .format("{} Second definition here", ident.ident.place)
-            .build();
+        messages.addErr(ident.ident.place, "Redefinition of symbol {}", ident.ident);
+        messages.addFormat(MPriority::W1, ident.ident.place, "{} First definition here", symbol.name.ident.place);
+        messages.addFormat(MPriority::W1, ident.ident.place, "{} Second definition here", ident.ident.place);
+        return berror;
     } else {
         SymbolToken symbol;
         symbol.name = nodes::QualIdent{{}, ident.ident};
@@ -109,32 +102,33 @@ Error SymbolTable::add_symbol(nodes::IdentDef ident, SymbolGroup group, nodes::T
         symbol.type = type;
         symbol.count = 0;
         symbols[ident.ident] = symbol;
-        return {};
+        return bsuccess;
     }
 }
 
-Error SymbolTable::add_value(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type,
+bool SymbolTable::add_value(MessageManager& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type,
                              nodes::ExpressionPtr value) {
-    if (auto error = add_symbol(ident, group, type); error) {
-        return error;
+    if (auto res = add_symbol(messages, ident, group, type); !res) {
+        return berror;
     } else {
         values[ident.ident] = value;
-        return {};
+        return bsuccess;
     }
 }
 
-Error SymbolTable::add_table(nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) {
-    if (auto error = add_symbol(ident, group, type); error) {
-        return error;
+bool SymbolTable::add_table(MessageManager& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) {
+    if (auto res = add_symbol(messages, ident, group, type); !res) {
+        return berror;
     } else {
         tables[ident.ident] = std::move(table);
-        return {};
+        return bsuccess;
     }
 }
 
-SemResult<SymbolToken> SymbolTable::get_symbol(const nodes::QualIdent& ident, bool secretly) const {
-    auto error = ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
+Maybe<SymbolToken> SymbolTable::get_symbol(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+    auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
     if (ident.qual) {
+        messages.addMessage(msg);
         return error;
     } else {
         if (auto res = symbols.find(ident.ident); res != symbols.end()) {
@@ -142,14 +136,16 @@ SemResult<SymbolToken> SymbolTable::get_symbol(const nodes::QualIdent& ident, bo
                 const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return SymbolToken(res->second);
         } else {
+            messages.addMessage(msg);
             return error;
         }
     }
 }
 
-SemResult<nodes::ExpressionPtr> SymbolTable::get_value(const nodes::QualIdent& ident, bool secretly) const {
-    auto error = ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
+Maybe<nodes::ExpressionPtr> SymbolTable::get_value(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+    auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
     if (ident.qual) {
+        messages.addMessage(msg);
         return error;
     } else {
         if (auto res = values.find(ident.ident); res != values.end()) {
@@ -157,13 +153,15 @@ SemResult<nodes::ExpressionPtr> SymbolTable::get_value(const nodes::QualIdent& i
                 const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return nodes::ExpressionPtr(res->second);
         } else {
+            messages.addMessage(msg);
             return error;
         }
     }
 }
-SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident, bool secretly) const {
-    auto error = ErrorBuilder(ident.ident.place).format("Symbol {} not found", ident).build();
+Maybe<TablePtr> SymbolTable::get_table(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+    auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
     if (ident.qual) {
+        messages.addMessage(msg);
         return error;
     } else {
         if (auto res = tables.find(ident.ident); res != tables.end()) {
@@ -171,6 +169,7 @@ SemResult<TablePtr> SymbolTable::get_table(const nodes::QualIdent& ident, bool s
                 const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return TablePtr(res->second);
         } else {
+            messages.addMessage(msg);
             return error;
         }
     }

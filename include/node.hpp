@@ -1,14 +1,21 @@
 #pragma once
 
-#include "plib/code_stream.hpp"
 #include "parser_tools.hpp"
+#include "plib/code_stream.hpp"
+#include "semantic_context.hpp"
+
+class SemanticContext;
 
 namespace nodes {
+
+using Context = SemanticContext;
 
 struct Node {
     CodePlace place;
     template <class T>
-    const T* is() const { return dynamic_cast<const T*>(this); }
+    const T* is() const {
+        return dynamic_cast<const T*>(this);
+    }
     virtual std::string to_string() const = 0;
     virtual ~Node() {}
 };
@@ -21,16 +28,17 @@ struct Ident : public Node {
     std::string to_string() const override { return fmt::format("{}", fmt::join(value, "")); };
     bool equal_to(const char* str) {
         size_t i = 0;
-        for (;str[i] != '\0'; i++) {
-            if (value[i] != str[i]) return false;
+        for (; str[i] != '\0'; i++) {
+            if (value[i] != str[i])
+                return false;
         }
         return value.size() == i;
     }
-    bool operator == (const Ident& other) const { return value == other.value; };
+    bool operator==(const Ident& other) const { return value == other.value; };
     std::vector<char> value;
 };
 
-inline Ident str_to_ident(const char * str) {
+inline Ident str_to_ident(const char* str) {
     Ident ident;
     for (int i = 0; str[i] != '\0'; i++) {
         ident.value.push_back(str[i]);
@@ -45,9 +53,7 @@ struct QualIdent {
         else
             return fmt::format("{}", ident);
     }
-    bool operator == (const QualIdent& other) const {
-        return ident == other.ident;
-    }
+    bool operator==(const QualIdent& other) const { return ident == other.ident; }
     std::optional<Ident> qual;
     Ident ident;
 };
@@ -55,7 +61,7 @@ struct QualIdent {
 struct IdentDef {
     Ident ident;
     bool def;
-    bool operator == (const IdentDef&) const = default;
+    bool operator==(const IdentDef&) const = default;
 };
 
 struct Expression;
@@ -70,4 +76,4 @@ using StatementPtr = OPtr<Statement>;
 struct Section;
 using SectionPtr = OPtr<Section>;
 
-}
+} // namespace nodes
