@@ -20,12 +20,13 @@ int main(int argc, char* argv[]) {
     }
 
     auto parser = get_parser();
-    std::string error;
-    auto loader = ModuleLoader::load(args[0].data(), parser, error);
-    if (error.size() > 0)
-        fmt::print("{}", error);
-    if (loader.get_table() != nullptr) {
-        fmt::print("{}", loader.get_table()->to_string());
+    IOManager io;
+    ModuleLoader loader(parser);
+    auto res = loader.load(io, args[0].data());
+    if (res) {
+        fmt::print("{}", res->to_string());
+    } else {
+        io.write_errors();
     }
 
     return 0;

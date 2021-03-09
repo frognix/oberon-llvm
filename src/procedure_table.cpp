@@ -1,19 +1,26 @@
 #include "procedure_table.hpp"
 
-ProcedureTable::ProcedureTable(nodes::Ident name, nodes::ProcedureType type, std::optional<nodes::ExpressionPtr> ret,
-               nodes::StatementSequence body, SymbolTable* parent)
-    : SymbolTable(body), m_name(name), m_type(type), m_ret(ret), m_parent(parent) {
-    for (auto section : m_type.params.sections) {
+ParseReturnType ProcedureTable::parse(nodes::Ident name, nodes::ProcedureType type,
+                                          std::optional<nodes::ExpressionPtr> ret,
+                                          nodes::StatementSequence body, nodes::DeclarationSequence seq,
+                                          SymbolTable* parent, MessageContainer& mm) {
+    std::unique_ptr<ProcedureTable> table(new ProcedureTable());
+    table->m_name = name;
+    table->m_type = type;
+    table->m_ret = ret;
+    table->m_parent = parent;
+    for (auto section : table->m_type.params.sections) {
         auto group = section.var ? SymbolGroup::VAR : SymbolGroup::CONST;
         for (auto ident : section.idents) {
-            MessageManager messages;
-            auto res = SymbolTable::add_symbol(messages, nodes::IdentDef{ident, false}, group, section.type);
-            if (!res) throw std::runtime_error("Internal error, can't add symbol to table");
+            MessageContainer messages;
+            auto res = table->SymbolTable::add_symbol(messages, nodes::IdentDef{ident, false}, group, section.type);
+            if (!res) return error;
         }
     }
+    return SymbolTable::base_parse(std::unique_ptr<SymbolTable>(table.release()), seq, body, mm);
 }
 
-Maybe<SymbolToken> ProcedureTable::get_symbol(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<SymbolToken> ProcedureTable::get_symbol(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (ident.qual) {
         return m_parent->get_symbol(messages, ident, secretly);
     } else {
@@ -27,7 +34,7 @@ Maybe<SymbolToken> ProcedureTable::get_symbol(MessageManager& messages, const no
     }
 }
 
-Maybe<nodes::ExpressionPtr> ProcedureTable::get_value(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<nodes::ExpressionPtr> ProcedureTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (ident.qual) {
         return m_parent->get_value(messages, ident, secretly);
     } else {
@@ -41,7 +48,7 @@ Maybe<nodes::ExpressionPtr> ProcedureTable::get_value(MessageManager& messages, 
     }
 }
 
-Maybe<TablePtr> ProcedureTable::get_table(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<TablePtr> ProcedureTable::get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (ident.qual) {
         return m_parent->get_table(messages, ident, secretly);
     } else {
@@ -55,7 +62,7 @@ Maybe<TablePtr> ProcedureTable::get_table(MessageManager& messages, const nodes:
     }
 }
 
-bool ProcedureTable::add_symbol(MessageManager& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
+bool ProcedureTable::add_symbol(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
     if (ident.def) {
         messages.addErr(ident.ident.place, "Cannot export local variable {}", ident.ident);
         return berror;

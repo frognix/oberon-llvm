@@ -19,7 +19,10 @@ src = [
   './src/module_table.cpp',
   './src/statement_nodes.cpp',
   './src/section_nodes.cpp',
-  './src/module_loader.cpp'
+  './src/module_loader.cpp',
+  './src/io_manager.cpp',
+  './src/file_manager.cpp',
+  './src/message_manager.cpp'
 ]
 
 fmt_dep = dependency('fmt')

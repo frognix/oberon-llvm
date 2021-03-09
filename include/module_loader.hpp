@@ -2,6 +2,7 @@
 
 #include "parser.hpp"
 #include "module_table.hpp"
+#include "io_manager.hpp"
 
 #include <chrono>
 
@@ -14,10 +15,9 @@ using ModuleResult = std::variant<ModuleLoader, std::string>;
 
 class ModuleLoader {
 public:
-    static ModuleLoader load(std::string name, ParserPtr<nodes::Module> parser, std::string& error);
-    ModuleTable const* get_table() const { return m_module.get(); }
+    ModuleLoader(ParserPtr<nodes::Module> p) : parser(p) {}
+    SemanticUnitI* load(IOManager& io, std::string name);
 private:
-    ModuleLoader() {}
-    std::unique_ptr<ModuleTable> m_module;
-    std::vector<ModuleLoader> m_imports;
+    ParserPtr<nodes::Module> parser;
+    std::unordered_map<nodes::Ident, std::unique_ptr<SemanticUnitI>> units;
 };

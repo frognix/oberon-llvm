@@ -1,34 +1,21 @@
 #pragma once
 
-#include "plib/code_stream.hpp"
-#include <cstddef>
+#include "message_container.hpp"
+#include <filesystem>
+#include <map>
+#include "file_manager.hpp"
 
-enum MPriority : char {
-    ERR, W1, W2, W3, W4
-};
+namespace fs = std::filesystem;
 
-struct Message {
-    Message(MPriority p, CodePlace pl, std::string t) : priority(p), place(pl), text(t) {}
-    MPriority priority;
-    CodePlace place;
-    std::string text;
-};
+class IOManager;
 
 class MessageManager {
 public:
-    MessageManager() {}
-    template <class... Args>
-    void addFormat(MPriority priority, CodePlace place, const char* str, const Args&... args) noexcept {
-        addMessage({priority, place, fmt::format(str, args...)});
-    }
-    template <class... Args>
-    void addErr(CodePlace place, const char* str, const Args&... args) noexcept {
-        addMessage({MPriority::ERR, place, fmt::format(str, args...)});
-    }
-    void addMessage(Message message) {
-        messages.push_back(message);
-    }
-    const std::vector<Message>& get_messages() { return messages; };
+    MessageManager(IOManager* io, FileManager* fm) : io_manager(io), file_manager(fm) {}
+    std::optional<MessageContainer*> get_container(fs::path path);
+    void write_errors(std::ostream&) const;
 private:
-    std::vector<Message> messages;
+    IOManager* io_manager;
+    FileManager* file_manager;
+    std::map<fs::path, std::pair<CodeStream*, MessageContainer>> containers;
 };

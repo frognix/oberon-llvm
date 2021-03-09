@@ -1,36 +1,28 @@
 #include "module_table.hpp"
 
-ModuleTable::ModuleTable(nodes::Ident name, nodes::StatementSequence body)
-    : SymbolTable(body), m_name(name) {}
+ParseReturnType ModuleTable::parse(nodes::Ident name, std::vector<std::pair<nodes::Import, ModuleTablePtr>> imports,
+                                   const nodes::DeclarationSequence& seq, nodes::StatementSequence body, MessageContainer& mm) {
+    std::unique_ptr<ModuleTable> table(new ModuleTable());
+    table->m_name = name;
+    for (auto [import, ptr] : imports) {
+        auto res = table->add_import(mm, import, ptr);
+        if (!res) return error;
+    }
+    return SymbolTable::base_parse(std::unique_ptr<SymbolTable>(table.release()), seq, body, mm);
+}
 
-bool ModuleTable::add_imports(MessageManager& messages, nodes::ImportList imports) {
-    for (auto& import : imports) {
-        auto res = SymbolTable::add_symbol(messages, nodes::IdentDef{import.name, false},
-                                           SymbolGroup::MODULE, nodes::make_type<nodes::TypeName>(nodes::QualIdent{{}, import.name}));
-        if (res) {
-            m_imports[import.name] = Import{import.real_name, nullptr};
-        } else {
-            return berror;
-        }
+bool ModuleTable::add_import(MessageContainer& messages, nodes::Import import, ModuleTablePtr ptr) {
+    auto res = SymbolTable::add_symbol(messages, nodes::IdentDef{import.name, false},
+                                       SymbolGroup::MODULE, nodes::make_type<nodes::TypeName>(nodes::QualIdent{{}, import.name}));
+    if (res) {
+        m_imports[import.name] = Import{import.real_name, ptr};
+    } else {
+        return berror;
     }
     return bsuccess;
 }
 
-bool ModuleTable::set_module(MessageManager& messages, ModuleTablePtr module_ptr) {
-    auto res = std::find_if(m_imports.begin(), m_imports.end(), [module_ptr](auto pair){
-        auto [name, module] = pair;
-        return module.name == module_ptr->m_name;
-    });
-    if (res != m_imports.end()) {
-        res->second.module = module_ptr;
-        return bsuccess;
-    } else {
-        messages.addErr(module_ptr->m_name.place, "Module {} not imported", module_ptr->m_name);
-        return berror;
-    }
-}
-
-Maybe<SymbolToken> ModuleTable::get_symbol_out(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<SymbolToken> ModuleTable::get_symbol_out(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (m_exports.contains(ident.ident)) {
         nodes::QualIdent name{{}, ident.ident};
         auto res = SymbolTable::get_symbol(messages, name, secretly);
@@ -45,7 +37,7 @@ Maybe<SymbolToken> ModuleTable::get_symbol_out(MessageManager& messages, const n
     }
 }
 
-Maybe<SymbolToken> ModuleTable::get_symbol(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<SymbolToken> ModuleTable::get_symbol(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (!ident.qual) {
         return SymbolTable::get_symbol(messages, ident, secretly);
     } else {
@@ -64,7 +56,7 @@ Maybe<SymbolToken> ModuleTable::get_symbol(MessageManager& messages, const nodes
     }
 }
 
-Maybe<nodes::ExpressionPtr> ModuleTable::get_value(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<nodes::ExpressionPtr> ModuleTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (!ident.qual) {
         return SymbolTable::get_value(messages, ident, secretly);
     } else {
@@ -78,7 +70,7 @@ Maybe<nodes::ExpressionPtr> ModuleTable::get_value(MessageManager& messages, con
     }
 }
 
-Maybe<TablePtr> ModuleTable::get_table(MessageManager& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<TablePtr> ModuleTable::get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (!ident.qual) {
         return SymbolTable::get_table(messages, ident, secretly);
     } else {
@@ -92,7 +84,7 @@ Maybe<TablePtr> ModuleTable::get_table(MessageManager& messages, const nodes::Qu
     }
 }
 
-bool ModuleTable::add_symbol(MessageManager& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
+bool ModuleTable::add_symbol(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
     if (ident.def) {
         auto res = SymbolTable::add_symbol(messages, ident, group, type);
         if (res) {
