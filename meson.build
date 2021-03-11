@@ -9,7 +9,6 @@ incdir = include_directories('include')
 src = [
   './src/main.cpp',
   './src/plib/format.cpp',
-  './src/plib/reassign_core.cpp',
   './src/plib/code_stream.cpp',
   './src/parser.cpp',
   './src/expression_nodes.cpp',

@@ -1,5 +1,6 @@
 #include "parser.hpp"
 
+#include "plib/parser.hpp"
 #include "plib/parsers.hpp"
 
 using namespace nodes;
@@ -111,11 +112,11 @@ inline ParserPtr<std::vector<T>> limiters(ParserPtr<E> begin, ParserPtr<T> parse
 }
 
 ParserPtr<char> comment() {
-    ParserPtr<std::vector<char>> comm;
+    ParserLinker<std::vector<char>> comm;
 
-    comm = limiters(symbols("(*"), either({any_func(), change(comm, '0')}), symbols("*)"));
+    auto lcomm = comm.link(limiters(symbols("(*"), either({any_func(), change(comm.get(), '0')}), symbols("*)")));
 
-    return change(comm, '0');
+    return change(lcomm, '0');
 }
 
 ParserPtr<std::vector<char>> delim() {
@@ -250,7 +251,10 @@ ParserPtr<IdentDef> identdef = extension(sequence(ident, maybe(symbol('*'))), []
     return IdentDef{ident, (bool)def};
  });
 
-auto type_parser(ParserPtr<TypePtr> type, ParserPtr<ExpressionPtr> expression) {
+auto type_parser(ParserPtr<ExpressionPtr> expression) {
+    ParserLinker<TypePtr> typeLink;
+    auto type = typeLink.get();
+
     ParserPtr<IdentList> identList = extra_delim(identdef, symbol(','));
     ParserPtr<FieldList> fieldList = construct<FieldList>(syntax_index<0, 2>::select(identList, symbol(':'), type));
 
@@ -302,12 +306,15 @@ auto type_parser(ParserPtr<TypePtr> type, ParserPtr<ExpressionPtr> expression) {
 
     ParserPtr<TypePtr> strucType = node_either<Type>(recordType, pointerType, arrayType, procedureType);
 
-    type = either({strucType, typeName});
+    auto realType = typeLink.link(either({strucType, typeName}));
 
-    return std::tuple{formalParameters, fieldList};
+    return std::tuple{realType, formalParameters, fieldList};
 }
 
-auto expression_parser(ParserPtr<ExpressionPtr> expression) {
+auto expression_parser() {
+    ParserLinker<ExpressionPtr> expressionLink;
+    auto expression = expressionLink.get();
+
     ParserPtr<Nil> nil = extension(keyword("NIL"), [](const auto&) { return Nil{}; });
 
     ParserPtr<Boolean> boolean = extension(either({keyword("TRUE"), keyword("FALSE")}), [](const auto& key) {
@@ -375,43 +382,48 @@ auto expression_parser(ParserPtr<ExpressionPtr> expression) {
 
     ParserPtr<ProcCall> procCall = construct<ProcCall>(sequence(designator, maybe(actualParameters)));
 
-    ParserPtr<ExpressionPtr> factor;
+    ParserLinker<ExpressionPtr> factorLink;
 
-    ParserPtr<Tilda> tilda = construct<Tilda>(syntax_index<1>::select(symbol('~'), factor));
+    ParserPtr<Tilda> tilda = construct<Tilda>(syntax_index<1>::select(symbol('~'), factorLink.get()));
 
-    factor = either({node_either<Expression>(charConst, number, string, nil, boolean, set, procCall, tilda),
+    auto preFactor = either({node_either<Expression>(charConst, number, string, nil, boolean, set, procCall, tilda),
                      syntax_index<1>::select(symbol('('), expression, symbol(')'))});
+    auto factor = factorLink.link(preFactor);
 
     ParserPtr<Operator> mulOperator = either({construct<Operator>(either({keyword("DIV"), keyword("MOD")})),
                                               construct<Operator>(either({symbol('*'), symbol('/'), symbol('&')}))});
 
-    ParserPtr<ExpressionPtr> term;
-    term = node_either<Expression>(construct<Term>(syntax_sequence(factor, maybe(syntax_sequence(mulOperator, term)))));
+    ParserLinker<ExpressionPtr> termLink;
+    auto preTerm = node_either<Expression>(construct<Term>(syntax_sequence(factor, maybe(syntax_sequence(mulOperator, termLink.get())))));
+    auto term = termLink.link(preTerm);
 
     ParserPtr<Operator> addOperator =
         either({construct<Operator>(keyword("OR")), construct<Operator>(either({symbol('+'), symbol('-')}))});
 
-    ParserPtr<ExpressionPtr> simpleExpression;
-    simpleExpression = node_either<Expression>(construct<Term>(syntax_sequence(
-        maybe(either({symbol('+'), symbol('-')})), term, maybe(syntax_sequence(addOperator, simpleExpression)))));
+    ParserLinker<ExpressionPtr> simpleExpressionLink;
+    auto preSimpleExpression = node_either<Expression>(construct<Term>(syntax_sequence(
+        maybe(either({symbol('+'), symbol('-')})), term, maybe(syntax_sequence(addOperator, simpleExpressionLink.get())))));
+    auto simpleExpression = simpleExpressionLink.link(preSimpleExpression);
 
     ParserPtr<Operator> relation =
         either({construct<Operator>(either({keyword("IN"), keyword("IS")})),
                 construct<Operator>(either({symbols("<="), symbols(">=")})),
                 construct<Operator>(either({symbol('<'), symbol('>'), symbol('#'), symbol('=')}))});
 
-    expression = node_either<Expression>(construct<Term>(syntax_sequence(simpleExpression, maybe(syntax_sequence(relation, simpleExpression)))));
+    auto preExpression = node_either<Expression>(construct<Term>(syntax_sequence(simpleExpression, maybe(syntax_sequence(relation, simpleExpression)))));
+    auto realExpression = expressionLink.link(preExpression);
 
     auto lbl = variant(integer, string, qualident);
 
-    return std::tuple{number, procCall, designator, lbl};
+    return std::tuple{realExpression, procCall, designator, lbl};
 }
 
-auto statement_parser(ParserPtr<StatementPtr> statement, ParserPtr<ExpressionPtr> expression,
+auto statement_parser(ParserPtr<ExpressionPtr> expression,
                       ParserPtr<Label> lbl, ParserPtr<Designator> designator, ParserPtr<ProcCall> procCall) {
-    auto assignment = construct<Assignment>(syntax_index<0, 2>::select(designator, symbols(":="), expression));
+    ParserLinker<std::vector<StatementPtr>> statementSequenceLink;
+    auto statementSequence = statementSequenceLink.get();
 
-    auto statementSequence = unwrap_maybe_list(extra_delim(maybe(statement), symbol(';')));
+    auto assignment = construct<Assignment>(syntax_index<0, 2>::select(designator, symbols(":="), expression));
 
     auto elsif = syntax_index<1, 3>::select(keyword("ELSIF"), expression, keyword("THEN"), statementSequence);
 
@@ -440,10 +452,11 @@ auto statement_parser(ParserPtr<StatementPtr> statement, ParserPtr<ExpressionPtr
         keyword("FOR"), ident, symbols(":="), expression, keyword("TO"), expression,
         maybe(syntax_index<1>::select(keyword("BY"), expression)), keyword("DO"), statementSequence, keyword("END")));
 
-    statement = node_either<Statement>(assignment, construct<CallStatement>(set_place(procCall)), ifStatement, caseStatement, whileStatement,
+    auto statement = node_either<Statement>(assignment, construct<CallStatement>(set_place(procCall)), ifStatement, caseStatement, whileStatement,
                                        repeatStatement, forStatement);
+    auto realStatementSequence = statementSequenceLink.link(unwrap_maybe_list(extra_delim(maybe(statement), symbol(';'))));
 
-    return statementSequence;
+    return realStatementSequence;
 }
 
 auto declarations_parser(ParserPtr<TypePtr> type, ParserPtr<ExpressionPtr> expression,
@@ -456,24 +469,26 @@ auto declarations_parser(ParserPtr<TypePtr> type, ParserPtr<ExpressionPtr> expre
 
     ParserPtr<TypeDecl> typeDecl = construct<TypeDecl>(syntax_index<0, 2>::select(identdef, symbol('='), type));
 
-    ParserPtr<SectionPtr> procedureDecl;
+    ParserLinker<DeclarationSequence> declarationSequenceLink;
 
-    auto declarationSequence = construct<DeclarationSequence>(
+    auto procDeclBase = construct<ProcedureDeclaration>(syntax_index<1, 2, 4, 5, 6>::select(
+        keyword("PROCEDURE"), identdef, construct<ProcedureType>(maybe(formalParameters)), symbol(';'),
+        declarationSequenceLink.get(), maybe_list(syntax_index<1>::select(keyword("BEGIN"), statementSequence)),
+        maybe(syntax_index<1>::select(keyword("RETURN"), expression)), keyword("END")));
+
+    auto procedureDecl = node_either<Section>(
+        parse_index<0>::tuple_select(except(syntax_sequence(procDeclBase, ident), "same ident", [](const auto& pair) {
+            auto& [proc, ident] = pair;
+            return proc.name.ident == ident;
+        })));
+
+    auto preDeclarationSequence = construct<DeclarationSequence>(
         syntax_sequence(maybe_list(syntax_index<1>::select(keyword("CONST"), extra_delim0(constDecl, symbol(';')))),
                         maybe_list(syntax_index<1>::select(keyword("TYPE"), extra_delim0(typeDecl, symbol(';')))),
                         maybe_list(syntax_index<1>::select(keyword("VAR"), extra_delim0(variableDecl, symbol(';')))),
                         maybe_list(extra_delim0(procedureDecl, symbol(';')))));
 
-    auto procDeclBase = construct<ProcedureDeclaration>(syntax_index<1, 2, 4, 5, 6>::select(
-        keyword("PROCEDURE"), identdef, construct<ProcedureType>(maybe(formalParameters)), symbol(';'),
-        declarationSequence, maybe_list(syntax_index<1>::select(keyword("BEGIN"), statementSequence)),
-        maybe(syntax_index<1>::select(keyword("RETURN"), expression)), keyword("END")));
-
-    procedureDecl = node_either<Section>(
-        parse_index<0>::tuple_select(except(syntax_sequence(procDeclBase, ident), "same ident", [](const auto& pair) {
-            auto& [proc, ident] = pair;
-            return proc.name.ident == ident;
-        })));
+    auto declarationSequence = declarationSequenceLink.link(preDeclarationSequence);
 
     return declarationSequence;
 }
@@ -499,14 +514,11 @@ auto module_parser(ParserPtr<DeclarationSequence> declarationSequence, ParserPtr
 
 ParserPtr<Module> get_parser() {
 
-    ParserPtr<TypePtr> type;
-    ParserPtr<ExpressionPtr> expression;
-    ParserPtr<StatementPtr> statement;
+    auto [expression, procCall, designator, lbl] = expression_parser();
 
-    auto [number, procCall, designator, lbl] = expression_parser(expression);
-    auto statementSequence = statement_parser(statement, expression, lbl, designator, procCall);
+    auto statementSequence = statement_parser(expression, lbl, designator, procCall);
 
-    auto [formalParameters, fieldList] = type_parser(type, expression);
+    auto [type, formalParameters, fieldList] = type_parser(expression);
 
     auto declarationSequence = declarations_parser(type, expression, fieldList, formalParameters, statementSequence);
 
