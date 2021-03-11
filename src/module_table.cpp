@@ -30,7 +30,10 @@ Maybe<SymbolToken> ModuleTable::get_symbol_out(MessageContainer& messages, const
             auto symbol = *res;
             symbol.group = SymbolGroup::CONST;
             return symbol;
-        } else return error;
+        } else {
+            messages.addErr(ident.ident.place, "Symbol {} not found", ident);
+            return error;
+        }
     } else {
         messages.addErr(ident.ident.place, "Attempting to access a non-exported symbol {}", ident);
         return error;

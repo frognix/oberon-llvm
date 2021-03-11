@@ -19,10 +19,11 @@ std::string format_error(const char* text, int color, CodeStream* code, CodePlac
     auto length = code->line_length(place.line);
     int i = int(length) - column - 2;
     auto line = code->get_line(place.line);
-    return fmt::format("{} {} on:\n", format_color(color, text), place) + fmt::format("    {}\n", error) +
+    return fmt::format("{} on {}: ", format_color(color, text), place) + fmt::format("{}\n", error) +
            fmt::format("{}\n", std::string(line.size(), '-')) + fmt::format("{}", line) +
            fmt::format("{}{}{}\n", std::string(column - 3, ' '), format_red("~~~^~~~"),
-                       std::string(i >= 0 ? i : 0, ' '));
+                       std::string(i >= 0 ? i : 0, ' ')) +
+           fmt::format("{}\n", std::string(line.size(), '-'));
 }
 
 void MessageManager::write_errors(std::ostream& errors) const {
