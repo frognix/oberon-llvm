@@ -60,6 +60,8 @@ public:
     virtual bool add_value(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value) = 0;
     virtual bool add_table(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) = 0;
 
+    virtual bool type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const = 0;
+
     virtual std::string to_string() const = 0;
 };
 

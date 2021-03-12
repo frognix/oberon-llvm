@@ -3,12 +3,12 @@
 // #include "symbol_table.hpp"
 #include "message_container.hpp"
 
-class SymbolTable;
+class SymbolTableI;
 
 struct SemanticContext {
-    SemanticContext(MessageContainer& m, const SymbolTable& s) : messages(m), symbols(s) {}
+    SemanticContext(MessageContainer& m, const SymbolTableI& s) : messages(m), symbols(s) {}
     MessageContainer& messages;
-    const SymbolTable& symbols;
+    const SymbolTableI& symbols;
 };
 
 template <class T>

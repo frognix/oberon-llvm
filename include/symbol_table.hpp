@@ -65,7 +65,7 @@ public:
     bool analyze_code(MessageContainer& messages) const override;
 
     bool has_symbol(const nodes::QualIdent& ident) const { return symbols.contains(ident.ident); }
-    virtual bool type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const;
+    virtual bool type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const override;
 
     std::string to_string() const override;
 protected:

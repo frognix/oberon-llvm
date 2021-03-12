@@ -20,6 +20,15 @@ bool TypeHierarchy::extends(nodes::QualIdent extension, nodes::QualIdent base) c
     }
 }
 
+bool SymbolTable::type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const {
+    if (auto isRecord = dynamic_cast<const nodes::RecordType*>(extension); isRecord && isRecord->basetype) {
+        return type_hierarchy.extends(*isRecord->basetype, base);
+    } else if (auto isName = dynamic_cast<const nodes::TypeName*>(extension); isName) {
+        return type_hierarchy.extends(isName->ident, base);
+    } else
+        return false;
+}
+
 ParseReturnType SymbolTable::parse(const nodes::DeclarationSequence& seq, nodes::StatementSequence body, MessageContainer& mm) {
     std::unique_ptr<SymbolTable> table(new SymbolTable());
     return SymbolTable::base_parse(std::move(table), seq, body, mm);
@@ -181,15 +190,6 @@ Maybe<TablePtr> SymbolTable::get_table(MessageContainer& messages, const nodes::
             return error;
         }
     }
-}
-
-bool SymbolTable::type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const {
-    if (auto isRecord = dynamic_cast<const nodes::RecordType*>(extension); isRecord && isRecord->basetype) {
-        return type_hierarchy.extends(*isRecord->basetype, base);
-    } else if (auto isName = dynamic_cast<const nodes::TypeName*>(extension); isName) {
-        return type_hierarchy.extends(isName->ident, base);
-    } else
-        return false;
 }
 
 std::string SymbolTable::to_string() const {
