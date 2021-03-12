@@ -26,18 +26,24 @@ SemanticUnitI* ModuleLoader::load(IOManager& io, std::string module_name) {
     auto import_error = false;
     std::vector<std::pair<nodes::Import, ModuleTablePtr>> imports;
     for (auto& import : moduleTree.imports) {
-        if (auto res = units.find(import.real_name); res != units.end()) {
-            std::pair pair(import, static_cast<const ModuleTable*>(res->second.get()));
-            imports.push_back(pair);
-            continue;
+        if (auto unitRes = units.find(import.real_name); unitRes != units.end()) {
+            if (unitRes->second.get() == nullptr) {
+                messages->addErr(import.name.place, "Can't analyze module {} because of error in module {}", moduleTree.name, import.real_name);
+                import_error = true;
+            } else {
+                std::pair pair(import, static_cast<const ModuleTable*>(unitRes->second.get()));
+                imports.push_back(pair);
+            }
+        } else {
+             auto res = load(io, import.real_name.to_string());
+             if (!res) {
+                 units[import.real_name] = std::unique_ptr<SemanticUnitI>(nullptr);
+                 import_error = true;
+             } else {
+                 std::pair pair(import, static_cast<const ModuleTable*>(res));
+                 imports.push_back(pair);
+             }
         }
-        auto res = load(io, import.real_name.to_string());
-        if (!res) {
-            import_error = true;
-            continue;
-        }
-        std::pair pair(import, static_cast<const ModuleTable*>(res));
-        imports.push_back(pair);
     }
     if (import_error) return nullptr;
     auto moduleRes = ModuleTable::parse(moduleTree.name, imports, moduleTree.declarations, moduleTree.body, *messages);
