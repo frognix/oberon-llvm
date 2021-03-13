@@ -34,16 +34,6 @@ using SymbolMap = std::unordered_map<nodes::Ident, T>;
 
 using SymbolSet = std::unordered_set<nodes::Ident>;
 
-class TypeHierarchy {
-public:
-    TypeHierarchy() {}
-    void add_extension(nodes::QualIdent extension, nodes::QualIdent base);
-    bool extends(nodes::QualIdent extension, nodes::QualIdent base) const;
-
-private:
-    std::unordered_map<nodes::QualIdent, nodes::QualIdent> m_extended_types;
-};
-
 class MessageContainer;
 
 using ParseReturnType = std::optional<std::unique_ptr<SemanticUnitI>>;
@@ -69,7 +59,6 @@ public:
     bool analyze_code(MessageContainer& messages) const override;
 
     bool has_symbol(const nodes::QualIdent& ident) const { return symbols.contains(ident.ident); }
-    virtual bool type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const override;
 
     std::string to_string() const override;
 protected:
@@ -79,6 +68,5 @@ private:
     SymbolMap<SymbolToken> symbols;
     SymbolMap<nodes::ExpressionPtr> values;
     SymbolMap<std::shared_ptr<SymbolTable>> tables;
-    TypeHierarchy type_hierarchy;
     nodes::StatementSequence body;
 };

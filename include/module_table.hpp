@@ -20,8 +20,6 @@ public:
     virtual Maybe<nodes::ExpressionPtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
     virtual Maybe<TablePtr> get_table(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
 
-    virtual bool type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const override;
-
     virtual bool add_symbol(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) override;
 private:
     ModuleTable() {}

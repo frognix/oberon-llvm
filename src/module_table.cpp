@@ -99,21 +99,3 @@ bool ModuleTable::add_symbol(MessageContainer& messages, nodes::IdentDef ident, 
         return SymbolTable::add_symbol(messages, ident, group, type);
     }
 }
-
-bool ModuleTable::type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const {
-    if (auto isRecord = extension->is<nodes::RecordType>(); isRecord && isRecord->basetype) {
-        if (isRecord->basetype->qual && base.qual) {
-            if (auto mod = m_imports.at(*base.qual).module; mod) {
-                auto type = nodes::TypeName(nodes::QualIdent{{}, isRecord->basetype->ident});
-                return mod->type_extends_base(&type, nodes::QualIdent{{}, base.ident});
-            } else return true;
-        } else return SymbolTable::type_extends_base(extension, base);
-    } else if (auto isTypeName = extension->is<nodes::TypeName>(); isTypeName) {
-        if (isTypeName->ident.qual && base.qual) {
-            if (auto mod = m_imports.at(*base.qual).module; mod) {
-                auto type = nodes::TypeName(nodes::QualIdent{{}, isTypeName->ident.ident});
-                return mod->type_extends_base(&type, nodes::QualIdent{{}, base.ident});
-            } else return true;
-        } else return SymbolTable::type_extends_base(extension, base);
-    } else return false;
-}

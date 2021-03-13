@@ -10,8 +10,6 @@ public:
     virtual Maybe<SymbolToken> get_symbol(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
     virtual Maybe<nodes::ExpressionPtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
 
-    virtual bool type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const = 0;
-
     virtual std::string to_string() const = 0;
 };
 

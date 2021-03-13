@@ -1,34 +1,6 @@
 #include "symbol_table.hpp"
 #include "procedure_table.hpp"
 
-void TypeHierarchy::add_extension(nodes::QualIdent extension, nodes::QualIdent base) {
-    m_extended_types[extension] = base;
-}
-
-bool TypeHierarchy::extends(nodes::QualIdent extension, nodes::QualIdent base) const {
-    if (extension == base)
-        return true;
-    while (true) {
-        if (auto res = m_extended_types.find(extension); res != m_extended_types.end()) {
-            if (res->second == base)
-                return true;
-            else
-                extension = res->second;
-        } else {
-            return false;
-        }
-    }
-}
-
-bool SymbolTable::type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const {
-    if (auto isRecord = dynamic_cast<const nodes::RecordType*>(extension); isRecord && isRecord->basetype) {
-        return type_hierarchy.extends(*isRecord->basetype, base);
-    } else if (auto isName = dynamic_cast<const nodes::TypeName*>(extension); isName) {
-        return type_hierarchy.extends(isName->ident, base);
-    } else
-        return false;
-}
-
 ParseReturnType SymbolTable::parse(const nodes::DeclarationSequence& seq, nodes::StatementSequence body, MessageContainer& mm) {
     std::unique_ptr<SymbolTable> table(new SymbolTable());
     return SymbolTable::base_parse(std::move(table), seq, body, mm);
@@ -62,9 +34,6 @@ ParseReturnType SymbolTable::base_parse(std::unique_ptr<SymbolTable> table, cons
         }
         auto res = table->add_symbol(mm, decl.ident, SymbolGroup::TYPE, type);
         if (!res) return error;
-        if (auto isRecord = type->is<nodes::RecordType>(); isRecord && isRecord->basetype) {
-            table->type_hierarchy.add_extension(nodes::QualIdent{{}, decl.ident.ident}, *isRecord->basetype);
-        }
     }
     for (auto& decl : unchecked_types) {
         auto type = table->symbols[decl.ident.ident].type;

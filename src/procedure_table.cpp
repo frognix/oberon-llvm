@@ -68,8 +68,3 @@ bool ProcedureTable::add_symbol(MessageContainer& messages, nodes::IdentDef iden
         return SymbolTable::add_symbol(messages, ident, group, type);
     }
 }
-
-bool ProcedureTable::type_extends_base(const nodes::Type* extension, nodes::QualIdent base) const {
-    if (SymbolTable::type_extends_base(extension, base)) return true;
-    return m_parent->type_extends_base(extension, base);
-}
