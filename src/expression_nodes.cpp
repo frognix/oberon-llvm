@@ -155,19 +155,12 @@ Maybe<SymbolToken> Designator::get_symbol(Context& context, CodePlace place) con
                     return error;
                 }
             } else if (auto ident = std::get_if<QualIdent>(&sel); ident) {
-                auto ltype = get_record_from_pointer(symbol.type.get(), context, place);
-                if (!ltype)
-                    return error;
-                if (auto rsymbol = context.symbols.get_symbol(context.messages, *ident); rsymbol) {
-                    if (rsymbol->group == SymbolGroup::TYPE) {
-                        if (ltype && context.symbols.type_extends_base(*ltype, *ident)) {
-                            symbol.type = rsymbol->type;
-                        }
-                    } else {
-                        context.messages.addErr(place, "Expected type, found {}", rsymbol->name);
-                        return error;
-                    }
+                auto typeSymbol = context.symbols.get_symbol(context.messages, *ident);
+                if (!typeSymbol) return error;
+                if (assignment_compatible_types(context, *symbol.type, *typeSymbol->type)) {
+                    symbol.type = typeSymbol->type;
                 } else {
+                    context.messages.addErr(place, "'{}' is not an extension of '{}'", typeSymbol->type->to_string(), symbol.type->to_string());
                     return error;
                 }
             } else {
@@ -205,14 +198,20 @@ bool nodes::proccall_repair(ProcCallData& value, Context& context) {
     if (ident.selector.size() > 0 && !value.params) {
         auto back_selecter = ident.selector.back();
         if (!value.params && std::holds_alternative<QualIdent>(back_selecter)) {
-            auto desig = DesignatorRepairer(std::get<QualIdent>(back_selecter), std::vector<Selector>{});
-            if (!desig.repair(context))
+            auto desigRep = DesignatorRepairer(std::get<QualIdent>(back_selecter), std::vector<Selector>{});
+            if (!desigRep.repair(context))
                 return berror;
-            ident.selector.pop_back();
-            value.params = {make_expression<ProcCall>(desig.get(), std::optional<ExpList>{})};
+            auto desig = desigRep.get();
+            auto symbol = context.symbols.get_symbol(context.messages, desig.ident);
+            if (desig.selector.size() == 0 && symbol->group == SymbolGroup::TYPE) {
+                return bsuccess;
+            } else {
+                ident.selector.pop_back();
+                value.params = {make_expression<ProcCall>(desig, std::optional<ExpList>{})};
+            }
         }
     }
-    return true;
+    return bsuccess;
 }
 
 std::string ProcCall::to_string() const {
@@ -374,15 +373,43 @@ inline bool same_or_base(Context& context, const Type& expr, BaseType type1, Bas
     return  same_or(context, expr, BuiltInType(type1), BuiltInType(type2));
 }
 
-struct OpTableLine {
-    std::vector<OpType> oper;
+struct OpTableSubLine {
     std::vector<BaseType> first;
     std::vector<BaseType> second;
     BaseType result;
 };
 
+struct OpTableLine {
+    std::vector<OpType> oper;
+    std::vector<OpTableSubLine> sublines;
+};
+
 const std::vector<OpTableLine> optable {
-    {{OpType::ADD, OpType::SUB, OpType::MUL}, {BaseType::INTEGER, BaseType::BYTE}, {BaseType::INTEGER, BaseType::BYTE}, BaseType::INTEGER}
+    {{OpType::ADD, OpType::SUB, OpType::MUL}, {
+            OpTableSubLine{{BaseType::INTEGER, BaseType::BYTE}, {BaseType::INTEGER, BaseType::BYTE}, BaseType::INTEGER},
+            OpTableSubLine{{BaseType::REAL}, {BaseType::REAL}, BaseType::REAL}
+        }},
+    {{OpType::ADD, OpType::SUB, OpType::MUL, OpType::RDIV}, {
+            OpTableSubLine{{BaseType::SET}, {BaseType::SET}, BaseType::SET}
+        }},
+    {{OpType::IDIV, OpType::MOD}, {
+            OpTableSubLine{{BaseType::INTEGER, BaseType::BYTE}, {BaseType::INTEGER, BaseType::BYTE}, BaseType::INTEGER}
+        }},
+    {{OpType::OR, OpType::AND}, {
+            OpTableSubLine{{BaseType::BOOL}, {BaseType::BOOL}, BaseType::BOOL}
+        }},
+    {{OpType::EQ, OpType::NEQ, OpType::LT, OpType::LTE, OpType::GT, OpType::GTE}, {
+            OpTableSubLine{{BaseType::CHAR}, {BaseType::CHAR}, BaseType::BOOL},
+            OpTableSubLine{{BaseType::INTEGER, BaseType::BYTE}, {BaseType::INTEGER, BaseType::BYTE}, BaseType::BOOL},
+            OpTableSubLine{{BaseType::REAL}, {BaseType::REAL}, BaseType::BOOL}
+        }},
+    {{OpType::EQ, OpType::NEQ}, {
+            OpTableSubLine{{BaseType::BOOL}, {BaseType::BOOL}, BaseType::BOOL},
+            OpTableSubLine{{BaseType::SET}, {BaseType::SET}, BaseType::BOOL}
+        }},
+    {{OpType::IN}, {
+            OpTableSubLine{{BaseType::INTEGER, BaseType::BYTE}, {BaseType::SET}, BaseType::BOOL}
+        }}
 };
 
 Maybe<BaseType> nodes::expression_compatible(Context& context, CodePlace place, const Type& left, OpType oper, const Type& right) {
@@ -399,21 +426,24 @@ Maybe<BaseType> nodes::expression_compatible(Context& context, CodePlace place, 
                     break;
                 }
             }
-            bool left_check = false;
-            for (auto left_var : line.first) {
-                if (left == left_var) {
-                    left_check = true;
-                    break;
+            if (!oper_check) continue;
+            for (auto subline : line.sublines) {
+                bool left_check = false;
+                for (auto left_var : subline.first) {
+                    if (left == left_var) {
+                        left_check = true;
+                        break;
+                    }
                 }
-            }
-            bool right_check = false;
-            for (auto right_var : line.second) {
-                if (right == right_var) {
-                    right_check = true;
-                    break;
+                bool right_check = false;
+                for (auto right_var : subline.second) {
+                    if (right == right_var) {
+                        right_check = true;
+                        break;
+                    }
                 }
+                 if (left_check && right_check) return subline.result;
             }
-            if (oper_check && left_check && right_check) return line.result;
         }
     }
     if (oper == OpType::EQ || oper == OpType::NEQ || oper == OpType::LT || oper == OpType::LTE || oper == OpType::GT || oper == OpType::GTE) {
@@ -430,9 +460,15 @@ Maybe<BaseType> nodes::expression_compatible(Context& context, CodePlace place, 
         return BaseType::BOOL;
     }
     if (oper == OpType::IS) {
-        auto lrecord = left.is<RecordType>();
-        auto rrecord = right.is<RecordType>();
-        if (lrecord && rrecord && rrecord->extends(context, *rrecord)) return BaseType::BOOL;
+        if (auto rrecord = right.is<RecordType>(); rrecord) {
+            auto lrecord = left.is<RecordType>();
+            if (lrecord && rrecord->extends(context, *rrecord)) return BaseType::BOOL;
+            auto lpointer = left.is<PointerType>();
+            if (lpointer) {
+                auto& type = lpointer->get_type(context);
+                if (rrecord->extends(context, type)) return BaseType::BOOL;
+            }
+        }
     }
     context.messages.addErr(place, "Incompatible types for '{}' operator: {} and {}", optype_to_str(oper), left.to_string(), right.to_string());
     return error;
@@ -452,8 +488,20 @@ std::string Term::to_string() const {
 Maybe<std::pair<SymbolGroup, TypePtr>> Term::get_type(Context& context) const {
     if (!sign && !oper && !second) {
         return first->get_type(context);
+    } else if (oper && second) {
+        auto firstRes = first->get_type(context);
+        if (!firstRes) return error;
+        auto [firstGroup, firstType] = *firstRes;
+        auto secondRes = second.value()->get_type(context);
+        if (!secondRes) return error;
+        auto [secondGroup, secondType] = *secondRes;
+        if (auto type = expression_compatible(context, place, *firstType, oper->value, *secondType); type) {
+            return std::pair(SymbolGroup::CONST, make_type<BuiltInType>(*type));
+        } else {
+            return error;
+        }
     } else {
-        return std::pair(SymbolGroup::CONST, make_type<BuiltInType>(BaseType::INTEGER));
+        throw std::runtime_error("Internal error: invalid term");
     }
 }
 

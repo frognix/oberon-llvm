@@ -29,6 +29,7 @@ int main(int argc, char* argv[]) {
         fmt::print("{}", res->to_string());
     }
     io.write_errors();
+    if (!res) fmt::print(format_red("Exit with error\n"));
     // auto parser = get_parser();
 
 

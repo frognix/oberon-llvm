@@ -240,6 +240,7 @@ bool RecordType::extends(Context& context, const Type& type) const {
     auto typeRes = type.is<RecordType>();
     if (!typeRes) return false;
     auto& other = *typeRes;
+    if (same_types(context, *this, other)) return true;
     if (!basetype) return false;
     auto res = context.symbols.get_symbol(context.messages, *basetype);
     if (!res) throw std::runtime_error("Internal error (RecordType::extends)");
@@ -274,13 +275,13 @@ bool PointerType::check_type(Context& context) {
 }
 
 const RecordType& PointerType::get_type(Context& context) const {
-    TypePtr tmp_type;
+    Type* tmp_type;
     if (auto name = type->is<TypeName>()) {
         auto res = context.symbols.get_symbol(context.messages, name->ident);
         if (!res) throw std::runtime_error("Internal error (PointerType::get_type)");
-        tmp_type = res->type;
+        tmp_type = res->type.get();
     } else {
-        tmp_type = type;
+        tmp_type = type.get();
     }
     auto record = tmp_type->is<RecordType>();
     if (!record) throw std::runtime_error("Internal error (PointerType::get_type)");

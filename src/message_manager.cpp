@@ -21,7 +21,7 @@ std::string format_error(const char* text, int color, CodeStream* code, CodePlac
     auto line = code->get_line(place.line);
     return fmt::format("{} on {}: ", format_color(color, text), place) + fmt::format("{}\n", error) +
            fmt::format("{}\n", std::string(line.size(), '-')) + fmt::format("{}", line) +
-           fmt::format("{}{}{}\n", std::string(column - 3, ' '), format_red("~~~^~~~"),
+           fmt::format("{}{}{}\n", std::string(column - 3, ' '), format_color(color, "~~~^~~~"),
                        std::string(i >= 0 ? i : 0, ' ')) +
            fmt::format("{}\n", std::string(line.size(), '-'));
 }
