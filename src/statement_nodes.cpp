@@ -4,6 +4,7 @@
 
 #include "semantic_context.hpp"
 #include "symbol_table.hpp"
+#include "type.hpp"
 
 using namespace nodes;
 
@@ -25,14 +26,13 @@ bool Assignment::check(Context& context) const {
     auto rtype = value->get_type(context);
     if (!rtype)
         return berror;
-    auto lltype = lsymbol->type;
-    auto rrtype = *rtype;
-    auto rbuiltin = rrtype->is<BuiltInType>();
-    if (*lltype == *rrtype || (lltype->is<PointerType>() && rbuiltin && rbuiltin->type == BaseType::NIL)) {
+    auto& lltype = *lsymbol->type;
+    auto& [group, rrtype] = *rtype;
+    if (assignment_compatible_types(context, lltype, *rrtype)) {
         return bsuccess;
     } else {
         context.messages.addErr(place, "Incompatible types in assignment: {} and {}", lsymbol->type->to_string(),
-                                rtype.value()->to_string());
+                                rrtype->to_string());
         return berror;
     }
 }
@@ -94,9 +94,9 @@ std::string CallStatement::to_string() const {
 
 bool CallStatement::check(Context& context) const {
     auto info = call.get_info(context);
-    if (!info)
-        return berror;
-    if (info->type != nullptr) {
+    if (!info) return berror;
+    auto [group, type] = *info;
+    if (type != nullptr) {
         context.messages.addErr(place, "Expected procedure call without return type");
         return berror;
     }

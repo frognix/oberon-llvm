@@ -3,6 +3,7 @@
 #include "node.hpp"
 #include "repairer.hpp"
 #include "type.hpp"
+#include "symbol_token.hpp"
 #include <variant>
 
 struct SymbolToken;
@@ -10,10 +11,24 @@ struct SymbolToken;
 namespace nodes {
 
 struct Expression : Node {
-    virtual Maybe<TypePtr> get_type(Context&) const = 0;
+    virtual Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const = 0;
     virtual Maybe<ExpressionPtr> eval(Context&) const = 0;
     virtual ~Expression() = default;
 };
+
+enum class OpType {
+    ADD, SUB, MUL, RDIV, IDIV, MOD, OR,
+    AND, EQ, NEQ, LT, LTE, GT, GTE, IN, IS
+};
+
+struct Operator {
+    Operator() {}
+    Operator(Ident v);
+    Operator(char v);
+    OpType value;
+};
+
+Maybe<BaseType> expression_compatible(Context& context, CodePlace place, const Type& left, OpType oper, const Type& right);
 
 template <class Subtype, class... Args>
 ExpressionPtr make_expression(Args... args) {

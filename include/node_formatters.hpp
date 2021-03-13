@@ -317,18 +317,33 @@ struct fmt::formatter<nodes::DeclarationSequence> {
 //     }
 // };
 
+// template <>
+// struct fmt::formatter<nodes::FPSection> {
+//     template <typename ParseContext>
+//     constexpr auto parse(ParseContext& ctx) {
+//         return ctx.begin();
+//     }
+//     template <typename FormatContext>
+//     auto format(nodes::FPSection const& id, FormatContext& ctx) {
+//         if (id.var)
+//             return fmt::format_to(ctx.out(), "{} {} : {}", *id.var, fmt::join(id.idents, ", "), id.type);
+//         else
+//             return fmt::format_to(ctx.out(), "{} : {}", fmt::join(id.idents, ", "), id.type);
+//     }
+// };
+
 template <>
-struct fmt::formatter<nodes::FPSection> {
+struct fmt::formatter<nodes::FormalParameter> {
     template <typename ParseContext>
     constexpr auto parse(ParseContext& ctx) {
         return ctx.begin();
     }
     template <typename FormatContext>
-    auto format(nodes::FPSection const& id, FormatContext& ctx) {
-        if (id.var)
-            return fmt::format_to(ctx.out(), "{} {} : {}", *id.var, fmt::join(id.idents, ", "), id.type);
+    auto format(nodes::FormalParameter const& param, FormatContext& ctx) {
+        if (param.var)
+            return fmt::format_to(ctx.out(), "VAR {} : {}", param.ident, param.type);
         else
-            return fmt::format_to(ctx.out(), "{} : {}", fmt::join(id.idents, ", "), id.type);
+            return fmt::format_to(ctx.out(), "{} : {}", param.ident, param.type);
     }
 };
 
@@ -341,9 +356,9 @@ struct fmt::formatter<nodes::FormalParameters> {
     template <typename FormatContext>
     auto format(nodes::FormalParameters const& id, FormatContext& ctx) {
         if (id.rettype)
-            return fmt::format_to(ctx.out(), "({}) : {}", fmt::join(id.sections, "; "), *id.rettype);
+            return fmt::format_to(ctx.out(), "({}) : {}", fmt::join(id.params, "; "), *id.rettype);
         else
-            return fmt::format_to(ctx.out(), "({})", fmt::join(id.sections, "; "));
+            return fmt::format_to(ctx.out(), "({})", fmt::join(id.params, "; "));
     }
 };
 

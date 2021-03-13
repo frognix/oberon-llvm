@@ -48,6 +48,10 @@ class MessageContainer;
 
 using ParseReturnType = std::optional<std::unique_ptr<SemanticUnitI>>;
 
+class SymbolTable;
+
+using TablePtr = std::shared_ptr<SymbolTable>;
+
 class SymbolTable : public SemanticUnitI {
 public:
     // SymbolTable(nodes::StatementSequence b);
@@ -56,10 +60,10 @@ public:
     //SymbolTableI
     virtual Maybe<SymbolToken> get_symbol(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
     virtual Maybe<nodes::ExpressionPtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
-    virtual Maybe<TablePtr> get_table(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
-    virtual bool add_symbol(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) override;
-    bool add_value(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value) override;
-    bool add_table(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) override;
+    virtual Maybe<TablePtr> get_table(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const;
+    virtual bool add_symbol(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type);
+    bool add_value(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value);
+    bool add_table(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table);
 
     //CodeSectionI
     bool analyze_code(MessageContainer& messages) const override;
@@ -74,7 +78,7 @@ protected:
 private:
     SymbolMap<SymbolToken> symbols;
     SymbolMap<nodes::ExpressionPtr> values;
-    SymbolMap<TablePtr> tables;
+    SymbolMap<std::shared_ptr<SymbolTable>> tables;
     TypeHierarchy type_hierarchy;
     nodes::StatementSequence body;
 };

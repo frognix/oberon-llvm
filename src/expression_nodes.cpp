@@ -2,6 +2,8 @@
 
 #include "node_formatters.hpp"
 #include "symbol_table.hpp"
+#include "type.hpp"
+#include "type_nodes.hpp"
 
 using namespace nodes;
 
@@ -9,11 +11,11 @@ std::string Number::to_string() const {
     return std::visit([](auto&& arg) { return fmt::format("{}", arg); }, value);
 }
 
-Maybe<TypePtr> Number::get_type(Context&) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> Number::get_type(Context&) const {
     if (std::holds_alternative<Real>(value)) {
-        return make_base_type(BaseType::REAL);
+        return std::pair(SymbolGroup::CONST, make_base_type(BaseType::REAL));
     } else {
-        return make_base_type(BaseType::INTEGER);
+        return std::pair(SymbolGroup::CONST, make_base_type(BaseType::INTEGER));
     }
 }
 
@@ -28,8 +30,8 @@ std::string Char::to_string() const {
         return fmt::format("'{}'", value);
 }
 
-Maybe<TypePtr> Char::get_type(Context&) const {
-    return make_base_type(BaseType::CHAR);
+Maybe<std::pair<SymbolGroup, TypePtr>> Char::get_type(Context&) const {
+    return std::pair(SymbolGroup::CONST, make_base_type(BaseType::CHAR));
 }
 
 Maybe<ExpressionPtr> Char::eval(Context&) const {
@@ -40,10 +42,8 @@ std::string String::to_string() const {
     return fmt::format("\"{}\"", fmt::join(value, ""));
 }
 
-Maybe<TypePtr> String::get_type(Context&) const {
-    auto ch = make_base_type(BaseType::CHAR);
-    auto size = make_expression<Number>(std::variant<Real, Integer>(Integer(value.size())));
-    return make_type<ArrayType>(std::vector{size}, ch);
+Maybe<std::pair<SymbolGroup, TypePtr>> String::get_type(Context&) const {
+    return std::pair(SymbolGroup::CONST, make_type<ConstStringType>(value.size()));
 }
 
 Maybe<ExpressionPtr> String::eval(Context&) const {
@@ -54,8 +54,8 @@ std::string Nil::to_string() const {
     return "NIL";
 }
 
-Maybe<TypePtr> Nil::get_type(Context&) const {
-    return make_base_type(BaseType::NIL);
+Maybe<std::pair<SymbolGroup, TypePtr>> Nil::get_type(Context&) const {
+    return std::pair(SymbolGroup::CONST, make_base_type(BaseType::NIL));
 }
 
 Maybe<ExpressionPtr> Nil::eval(Context&) const {
@@ -66,8 +66,8 @@ std::string Boolean::to_string() const {
     return fmt::format("{}", value);
 }
 
-Maybe<TypePtr> Boolean::get_type(Context&) const {
-    return make_base_type(BaseType::BOOL);
+Maybe<std::pair<SymbolGroup, TypePtr>> Boolean::get_type(Context&) const {
+    return std::pair(SymbolGroup::CONST, make_base_type(BaseType::BOOL));
 }
 
 Maybe<ExpressionPtr> Boolean::eval(Context&) const {
@@ -78,8 +78,8 @@ std::string Set::to_string() const {
     return fmt::format("{{{}}}", fmt::join(value, ", "));
 }
 
-Maybe<TypePtr> Set::get_type(Context&) const {
-    return make_base_type(BaseType::SET);
+Maybe<std::pair<SymbolGroup, TypePtr>> Set::get_type(Context&) const {
+    return std::pair(SymbolGroup::CONST, make_base_type(BaseType::SET));
 }
 
 Maybe<ExpressionPtr> Set::eval(Context&) const {
@@ -224,104 +224,59 @@ std::string ProcCall::to_string() const {
         return fmt::format("{}", ident.to_string());
 }
 
-Maybe<SymbolToken> ProcCall::get_info(Context& context) const {
-    if (!data.repair(context))
-        return error;
+Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_info(Context& context) const {
+    if (!data.repair(context)) return error;
     auto ident = data.get().ident.get();
     auto params = data.get().params;
-    auto res = ident.get_symbol(context, place);
-    if (!res)
+    auto symbolRes = ident.get_symbol(context, place);
+    if (!symbolRes)
         return error;
-    auto symbol = *res;
-    if (!params) {
-        return symbol;
-    } else {
-        auto funcType = dynamic_cast<ProcedureType*>(symbol.type.get());
-        auto expression = params->begin();
-        if (funcType) {
-            for (auto& section : funcType->params.sections) {
-                for (auto& param [[maybe_unused]] : section.idents) {
-                    if (expression == params->end()) {
-                        context.messages.addErr(place,
-                                                "Number of arguments does not match the number of formal parameters");
-                        return error;
-                    }
-                    if (section.var) {
-                        auto procCall = dynamic_cast<ProcCall*>((*expression).get());
-                        auto errMsg = Message(MPriority::ERR, place,
-                                              fmt::format("Expected variable type {}", (*expression)->to_string()));
-                        if (!procCall) {
-                            context.messages.addMessage(errMsg);
-                            return error;
-                        }
-                        auto info = procCall->get_info(context);
-                        if (!info)
-                            return error;
-                        if (info->group != SymbolGroup::VAR) {
-                            context.messages.addMessage(errMsg);
-                            return error;
-                        }
-                    }
-                    auto exprType = (*expression)->get_type(context);
-                    if (!exprType)
-                        return error;
-                    if (*section.type != **exprType) {
-                        auto etype = exprType.value()->is<PointerType>();
-                        auto stype = section.type->is<PointerType>();
-                        TypeName const* ntype = nullptr;
-                        if (stype)
-                            ntype = stype->type->is<TypeName>();
-                        if (stype && etype && ntype) {
-                            if (!context.symbols.type_extends_base(etype->type.get(), ntype->ident)) {
-                                context.messages.addErr(place, "Type {} does not extends type {}", etype->type,
-                                                        stype->type);
-                                return error;
-                            }
-                        } else {
-                            context.messages.addErr(place, "Expected {}, found {}", section.type,
-                                                    exprType.value()->to_string());
-                            return error;
-                        }
-                    }
-                    expression++;
-                }
-            }
-            if (!funcType->params.rettype) {
-                symbol.type = nullptr;
-                // return error.format("This procedure call has no type").build();
-                return symbol;
-            } else {
-                auto type = (*funcType->params.rettype).get();
-                if (auto isBaseType = type->is<BuiltInType>(); isBaseType) {
-                    symbol.type = *funcType->params.rettype;
-                } else if (auto isTypeName = type->is<TypeName>(); isTypeName) {
-                    auto rettype = context.symbols.get_symbol(context.messages, isTypeName->ident);
-                    if (!rettype)
-                        return error;
-                    symbol.type = rettype->type;
-                } else {
-                    context.messages.addErr(place, "Expected base type or type name, found {}", type->to_string());
-                    return error;
-                }
-                symbol.group = SymbolGroup::CONST;
-                return symbol;
-            }
-        } else {
-            context.messages.addErr(place, "Expected procedure type, found {}", symbol.type.get()->to_string());
-            return error;
+    auto symbol = *symbolRes;
+    if (!params) return std::pair(symbol.group, symbol.type);
+
+    auto funcType = dynamic_cast<ProcedureType*>(symbol.type.get());
+    if (!funcType) {
+        context.messages.addErr(place, "Expected procedure type, found {}", symbol.type.get()->to_string());
+        return error;
+    }
+    if (params->size() != funcType->params.params.size()) {
+        context.messages.addErr(place, "Expected {} parameters, found {}", funcType->params.params.size(), params->size());
+        return error;
+    }
+    auto compatible_types = true;
+    for (size_t i = 0; i < funcType->params.params.size(); i++) {
+        auto var = funcType->params.params[i];
+        auto expr = (*params)[i];
+        auto exprRes = expr->get_type(context);
+        if (!exprRes) return error;
+        auto [group, exprType] = *exprRes;
+        if (var.var && group != SymbolGroup::VAR) {
+            context.messages.addErr(expr->place, "Expected variable");
+            compatible_types = false;
+        }
+        if (!assignment_compatible_types(context, *var.type, *exprType) && !array_compatible(context, *exprType, *var.type)) {
+            context.messages.addErr(place, "Can't match actual and formal parameter: {} and {}", exprType->to_string(), var.type->to_string());
+            compatible_types = false;
         }
     }
+    if (!compatible_types) {
+        return error;
+    }
+    TypePtr return_type;
+    if (funcType->params.rettype) return_type = *funcType->params.rettype;
+    return std::pair(SymbolGroup::CONST, return_type);
 }
 
-Maybe<TypePtr> ProcCall::get_type(Context& context) const {
-    auto symbol = get_info(context);
-    if (!symbol)
+Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_type(Context& context) const {
+    auto res = get_info(context);
+    if (!res)
         return error;
-    if (symbol->type == nullptr) {
+    auto [group, type] = *res;
+    if (type == nullptr) {
         context.messages.addErr(place, "This procedure call has no type");
         return error;
     } else {
-        return symbol->type;
+        return *res;
     }
 }
 
@@ -340,19 +295,18 @@ std::string Tilda::to_string() const {
     return fmt::format("~{}", expression);
 }
 
-Maybe<TypePtr> Tilda::get_type(Context& context) const {
-    auto expr_type = expression->get_type(context);
-    if (expr_type) {
-        auto boolean = make_base_type(BaseType::BOOL);
-        if (*expr_type == boolean)
-            return boolean;
-        else {
-            context.messages.addErr(place, "Expected {}, found {}", boolean->to_string(),
-                                    expr_type.value()->to_string());
-            return error;
-        }
-    } else
-        return expr_type;
+Maybe<std::pair<SymbolGroup, TypePtr>> Tilda::get_type(Context& context) const {
+    auto exprRes = expression->get_type(context);
+    if (!exprRes) {
+        return error;
+    }
+    auto [group, type] = *exprRes;
+    if (auto base = type->is<BuiltInType>(); base && base->equal_to(BaseType::BOOL))
+        return *exprRes;
+    else {
+        context.messages.addErr(place, "Expected Boolean, found {}", type->to_string());
+        return error;
+    }
 }
 
 Maybe<ExpressionPtr> Tilda::eval(Context& context) const {
@@ -367,22 +321,139 @@ Maybe<ExpressionPtr> Tilda::eval(Context& context) const {
     return make_expression<Boolean>(!boolean->value);
 }
 
+OpType ident_to_optype(const Ident& i) {
+    if (i.equal_to("+")) return OpType::ADD;
+    if (i.equal_to("-")) return OpType::SUB;
+    if (i.equal_to("*")) return OpType::MUL;
+    if (i.equal_to("/")) return OpType::RDIV;
+    if (i.equal_to("DIV")) return OpType::IDIV;
+    if (i.equal_to("MOD")) return OpType::MOD;
+    if (i.equal_to("OR")) return OpType::OR;
+    if (i.equal_to("&")) return OpType::AND;
+    if (i.equal_to("=")) return OpType::EQ;
+    if (i.equal_to("#")) return OpType::NEQ;
+    if (i.equal_to("<")) return OpType::LT;
+    if (i.equal_to("<=")) return OpType::LTE;
+    if (i.equal_to(">")) return OpType::GT;
+    if (i.equal_to(">=")) return OpType::GTE;
+    if (i.equal_to("IN")) return OpType::IN;
+    if (i.equal_to("IS")) return OpType::IS;
+    throw std::runtime_error("Internal error");
+}
+
+const char* optype_to_str(OpType type) {
+    switch (type) {
+        case OpType::ADD: return "+";
+        case OpType::SUB: return "-";
+        case OpType::MUL: return "*";
+        case OpType::RDIV: return "/";
+        case OpType::IDIV: return "DIV";
+        case OpType::MOD: return "MOD";
+        case OpType::OR: return "OR";
+        case OpType::AND: return "&";
+        case OpType::EQ: return "=";
+        case OpType::NEQ: return "#";
+        case OpType::LT: return "<";
+        case OpType::LTE: return "<=";
+        case OpType::GT: return ">";
+        case OpType::GTE: return ">=";
+        case OpType::IN: return "IN";
+        case OpType::IS: return "IS";
+        default: throw std::runtime_error("Internal error");
+    }
+}
+
+Operator::Operator(Ident v) : value(ident_to_optype(v)) {}
+Operator::Operator(char v) : value(ident_to_optype(Ident({v}))) {}
+
+inline bool same_or(Context& context, const Type& expr, const Type& type1, const Type& type2) {
+    return same_types(context, expr, type1) || same_types(context, expr, type2);
+}
+
+inline bool same_or_base(Context& context, const Type& expr, BaseType type1, BaseType type2) {
+    return  same_or(context, expr, BuiltInType(type1), BuiltInType(type2));
+}
+
+struct OpTableLine {
+    std::vector<OpType> oper;
+    std::vector<BaseType> first;
+    std::vector<BaseType> second;
+    BaseType result;
+};
+
+const std::vector<OpTableLine> optable {
+    {{OpType::ADD, OpType::SUB, OpType::MUL}, {BaseType::INTEGER, BaseType::BYTE}, {BaseType::INTEGER, BaseType::BYTE}, BaseType::INTEGER}
+};
+
+Maybe<BaseType> nodes::expression_compatible(Context& context, CodePlace place, const Type& left, OpType oper, const Type& right) {
+    auto lbase = left.is<BuiltInType>();
+    auto rbase = right.is<BuiltInType>();
+    if (lbase && rbase) {
+        auto left = lbase->type;
+        auto right = rbase->type;
+        for (auto& line : optable) {
+            bool oper_check = false;
+            for (auto oper_var : line.oper) {
+                if (oper == oper_var) {
+                    oper_check = true;
+                    break;
+                }
+            }
+            bool left_check = false;
+            for (auto left_var : line.first) {
+                if (left == left_var) {
+                    left_check = true;
+                    break;
+                }
+            }
+            bool right_check = false;
+            for (auto right_var : line.second) {
+                if (right == right_var) {
+                    right_check = true;
+                    break;
+                }
+            }
+            if (oper_check && left_check && right_check) return line.result;
+        }
+    }
+    if (oper == OpType::EQ || oper == OpType::NEQ || oper == OpType::LT || oper == OpType::LTE || oper == OpType::GT || oper == OpType::GTE) {
+        if ((same_types(context, left, BuiltInType(BaseType::CHAR)) || same_types(context, left, ConstStringType(1)))
+            && (same_types(context, right, BuiltInType(BaseType::CHAR)) || same_types(context, right, ConstStringType(1))))
+            return BaseType::BOOL;
+    }
+    if (oper == OpType::EQ || oper == OpType::NEQ) {
+        if ((same_types(context, left, BuiltInType(BaseType::NIL)) || left.is<PointerType>())
+            && (same_types(context, right, BuiltInType(BaseType::NIL)) || right.is<PointerType>()))
+            return BaseType::BOOL;
+        if ((same_types(context, left, BuiltInType(BaseType::NIL)) || left.is<ProcedureType>())
+            && (same_types(context, right, BuiltInType(BaseType::NIL)) || right.is<ProcedureType>()))
+        return BaseType::BOOL;
+    }
+    if (oper == OpType::IS) {
+        auto lrecord = left.is<RecordType>();
+        auto rrecord = right.is<RecordType>();
+        if (lrecord && rrecord && rrecord->extends(context, *rrecord)) return BaseType::BOOL;
+    }
+    context.messages.addErr(place, "Incompatible types for '{}' operator: {} and {}", optype_to_str(oper), left.to_string(), right.to_string());
+    return error;
+}
+
 std::string Term::to_string() const {
     std::string res = "";
     if (sign)
         res += *sign;
     if (oper)
-        return res + fmt::format("({} {} {})", first, oper->value, *second);
+        return res + fmt::format("({} {} {})", first, optype_to_str(oper->value), *second);
     else
         return res + fmt::format("{}", first);
 }
 
 ///! \todo
-Maybe<TypePtr> Term::get_type(Context& context) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> Term::get_type(Context& context) const {
     if (!sign && !oper && !second) {
         return first->get_type(context);
     } else {
-        return make_type<BuiltInType>(str_to_ident("INTEGER"));
+        return std::pair(SymbolGroup::CONST, make_type<BuiltInType>(BaseType::INTEGER));
     }
 }
 

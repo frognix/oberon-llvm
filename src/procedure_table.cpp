@@ -9,13 +9,11 @@ ParseReturnType ProcedureTable::parse(nodes::Ident name, nodes::ProcedureType ty
     table->m_type = type;
     table->m_ret = ret;
     table->m_parent = parent;
-    for (auto section : table->m_type.params.sections) {
+    for (auto section : table->m_type.params.params) {
         auto group = section.var ? SymbolGroup::VAR : SymbolGroup::CONST;
-        for (auto ident : section.idents) {
-            MessageContainer messages;
-            auto res = table->SymbolTable::add_symbol(messages, nodes::IdentDef{ident, false}, group, section.type);
-            if (!res) return error;
-        }
+        MessageContainer messages;
+        auto res = table->SymbolTable::add_symbol(messages, nodes::IdentDef{section.ident, false}, group, section.type);
+        if (!res) return error;
     }
     return SymbolTable::base_parse(std::unique_ptr<SymbolTable>(table.release()), seq, body, mm);
 }

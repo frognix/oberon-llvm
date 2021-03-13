@@ -41,8 +41,9 @@ ParseReturnType SymbolTable::base_parse(std::unique_ptr<SymbolTable> table, cons
         auto res = decl.expression->eval(context);
         if (!res) return error;
         auto expr = *res;
-        if (auto type = expr->get_type(context); type) {
-            auto res = table->add_value(mm, decl.ident, SymbolGroup::CONST, *type, expr);
+        if (auto exprRes = expr->get_type(context); exprRes) {
+            auto [group, type] = *exprRes;
+            auto res = table->add_value(mm, decl.ident, group, type, expr);
             if (!res) return error;
         } else {
             return error;
@@ -87,7 +88,7 @@ ParseReturnType SymbolTable::base_parse(std::unique_ptr<SymbolTable> table, cons
         } else {
             auto res = ProcedureTable::parse(decl.name.ident, *type.value()->is<typename nodes::ProcedureType>(), decl.ret, decl.body, decl.decls, table.get(), mm);
             if (!res) return error;
-            auto res1 = table->add_table(mm, decl.name, SymbolGroup::CONST, *type, TablePtr(res->release()));
+            auto res1 = table->add_table(mm, decl.name, SymbolGroup::CONST, *type, TablePtr(dynamic_cast<SymbolTable*>(res->release())));
             if (!res1) return error;
         }
     }
@@ -97,6 +98,10 @@ ParseReturnType SymbolTable::base_parse(std::unique_ptr<SymbolTable> table, cons
 bool SymbolTable::analyze_code(MessageContainer& messages) const {
     auto context = nodes::Context(messages, *this);
     auto serror = false;
+    for (auto& [name, table] : tables) {
+        auto res = table->analyze_code(messages);
+        if (!res) serror = true;
+    }
     for (auto& statement : body) {
         auto res = statement->check(context);
         if (!res) serror = true;
