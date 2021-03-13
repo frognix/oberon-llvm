@@ -27,9 +27,8 @@ int main(int argc, char* argv[]) {
     auto res = loader.load(io, args[0].data());
     if (res) {
         fmt::print("{}", res->to_string());
-    } else {
-        io.write_errors();
     }
+    io.write_errors();
     // auto parser = get_parser();
 
 

@@ -106,6 +106,10 @@ bool SymbolTable::analyze_code(MessageContainer& messages) const {
         auto res = statement->check(context);
         if (!res) serror = true;
     }
+    for (auto [name, symbol] : symbols) {
+        if (symbol.count == 0)
+            messages.addFormat(MPriority::W4, symbol.name.ident.place, "Unised symbol: {}", symbol.name);
+    }
     if (serror) return berror;
     return bsuccess;
 }

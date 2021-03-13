@@ -239,7 +239,7 @@ Maybe<TypePtr> RecordType::has_field(const Ident& ident, Context& context) const
 bool RecordType::extends(Context& context, const Type& type) const {
     auto typeRes = type.is<RecordType>();
     if (!typeRes) return false;
-    auto other = *typeRes;
+    auto& other = *typeRes;
     if (!basetype) return false;
     auto res = context.symbols.get_symbol(context.messages, *basetype);
     if (!res) throw std::runtime_error("Internal error (RecordType::extends)");
