@@ -15,6 +15,8 @@ struct Statement : Node {
 
 using StatementSequence = std::vector<StatementPtr>;
 
+bool check_statements(Context& context, const StatementSequence& seq);
+
 template <class Subtype, class... Args>
 StatementPtr make_statement(Args... args) {
     return make_optr<Statement, Subtype>(args...);

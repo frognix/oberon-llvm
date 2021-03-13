@@ -8,6 +8,15 @@
 
 using namespace nodes;
 
+bool nodes::check_statements(Context& context, const StatementSequence& seq) {
+    bool result = true;
+    for (auto& statement : seq) {
+        if (!statement->check(context))
+            result = false;
+    }
+    return result;
+}
+
 std::string Assignment::to_string() const {
     return fmt::format("{} := {}", variable.get().to_string(), value);
 }
@@ -46,8 +55,35 @@ std::string IfStatement::to_string() const {
         return fmt::format("IF {} THEN\n{}\n{}END", cond, block, fmt::join(elsif_blocks, "\n"));
 }
 
-bool IfStatement::check(Context&) const {
-    return bsuccess;
+bool check_if_block(Context& context, const IfBlock& if_block) {
+    auto [expr, statements] = if_block;
+    auto exprRes = expr->get_type(context);
+    if (!exprRes) {
+        return false;
+    }
+    auto [group, type] = *exprRes;
+    bool result = true;
+    if (auto base = type->is<BuiltInType>(); base && base->equal_to(BaseType::BOOL)) {
+        if (!check_statements(context, statements)) {
+            result = false;
+        }
+    } else {
+        context.messages.addErr(expr->place, "Expected expression fo BOOLEAN type");
+        result = false;
+    }
+    return result;
+}
+
+bool IfStatement::check(Context& context) const {
+    bool result = true;
+    for (auto& if_block : if_blocks) {
+        if (!check_if_block(context, if_block))
+            result = false;
+    }
+    if (else_block && !check_statements(context, *else_block)) {
+        result = false;
+    }
+    return result;
 }
 
 std::string CaseStatement::to_string() const {
@@ -64,8 +100,13 @@ std::string WhileStatement::to_string() const {
     return fmt::format("WHILE {} DO\n{}\n{}END", cond, block, fmt::join(elsif_blocks, "\n"));
 }
 
-bool WhileStatement::check(Context&) const {
-    return bsuccess;
+bool WhileStatement::check(Context& context) const {
+    bool result = true;
+    for (auto& if_block : if_blocks) {
+        if (!check_if_block(context, if_block))
+            result = false;
+    }
+    return result;
 }
 
 std::string RepeatStatement::to_string() const {
