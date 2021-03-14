@@ -2,6 +2,7 @@
 
 #include "plib/parser.hpp"
 #include "plib/parsers.hpp"
+#include "section_nodes.hpp"
 
 using namespace nodes;
 
@@ -120,7 +121,7 @@ ParserPtr<char> comment() {
 }
 
 ParserPtr<std::vector<char>> delim() {
-    return many(either({symbol(' '), symbol('\n'), comment()}));
+    return many(either({symbol(' '), symbol('\n'), symbol('\t'), comment()}));
 }
 
 template <class T, class D>
@@ -490,7 +491,7 @@ auto declarations_parser(ParserPtr<TypePtr> type, ParserPtr<ExpressionPtr> expre
 
     auto declarationSequence = declarationSequenceLink.link(preDeclarationSequence);
 
-    return declarationSequence;
+    return std::tuple{declarationSequence, constDecl, typeDecl, variableDecl};
 }
 
 auto module_parser(ParserPtr<DeclarationSequence> declarationSequence, ParserPtr<StatementSequence> statementSequence) {
@@ -509,10 +510,32 @@ auto module_parser(ParserPtr<DeclarationSequence> declarationSequence, ParserPtr
             return mod.name == ident;
         }));
 
-    return module;
+    return std::tuple{module, importList};
 }
 
-ParserPtr<Module> get_parser() {
+ParserPtr<Definition> definition_parser(ParserPtr<ImportList> importList,
+                                        ParserPtr<ConstDecl> constDecl, ParserPtr<TypeDecl> typeDecl,
+                                        ParserPtr<VariableDecl> variableDecl, ParserPtr<FormalParameters> formalParameters) {
+    auto ProcedureHeading = construct<ProcedureDefinition>(
+        syntax_index<1, 2>::select(keyword("PROCEDURE"), identdef, construct<ProcedureType>(maybe(formalParameters))));
+    auto typeDef = either({typeDecl, construct<TypeDecl>(identdef)});
+    auto definitionSeq = construct<DefinitionSequence>(
+        syntax_sequence(maybe_list(syntax_index<1>::select(keyword("CONST"), extra_delim0(constDecl, symbol(';')))),
+                        maybe_list(syntax_index<1>::select(keyword("TYPE"), extra_delim0(typeDef, symbol(';')))),
+                        maybe_list(syntax_index<1>::select(keyword("VAR"), extra_delim0(variableDecl, symbol(';')))),
+                        maybe_list(extra_delim0(ProcedureHeading, symbol(';')))));
+
+    auto definitionBase = construct<Definition>(syntax_index<1, 3, 4>::select(
+        keyword("DEFINITION"), ident, symbol(';'), maybe_list(importList), definitionSeq, keyword("END")));
+    auto definition = parse_index<0>::tuple_select(
+        except(syntax_sequence(definitionBase, ident, symbol('.')), "same definition name", [](const auto& pair) {
+            auto& [def, ident, dot] = pair;
+            return def.name == ident;
+        }));
+    return definition;
+}
+
+ParserPtr<std::shared_ptr<IModule>> get_parsers() {
 
     auto [expression, procCall, designator, lbl] = expression_parser();
 
@@ -520,9 +543,11 @@ ParserPtr<Module> get_parser() {
 
     auto [type, formalParameters, fieldList] = type_parser(expression);
 
-    auto declarationSequence = declarations_parser(type, expression, fieldList, formalParameters, statementSequence);
+    auto [declarationSequence, constDecl, typeDecl, variableDecl] = declarations_parser(type, expression, fieldList, formalParameters, statementSequence);
 
-    auto module = module_parser(declarationSequence, statementSequence);
+    auto [module, importList] = module_parser(declarationSequence, statementSequence);
 
-    return module;
+    auto definition = definition_parser(importList, constDecl, typeDecl, variableDecl, formalParameters);
+
+    return node_either<IModule>(module, definition);
 }

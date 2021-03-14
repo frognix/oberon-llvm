@@ -35,6 +35,16 @@ struct TypeName : Type {
     QualIdent ident;
 };
 
+struct ImportTypeName : Type {
+    std::string to_string() const override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
+    ImportTypeName(IdentDef i) : ident{{}, i.ident} {
+        if (!ident.qual && is_base_type(ident.ident))
+            throw std::runtime_error("Internal error: BaseType in TypeName");
+    }
+    QualIdent ident;
+};
+
 using FieldListSequence = std::vector<FieldList>;
 
 struct RecordType : Type {

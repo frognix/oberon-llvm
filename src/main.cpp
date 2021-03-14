@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    auto parser = get_parser();
+    auto parser = get_parsers();
     IOManager io;
     ModuleLoader loader(parser);
     auto res = loader.load(io, args[0].data());

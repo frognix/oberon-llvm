@@ -15,6 +15,11 @@ struct ConstDecl {
 struct TypeDecl {
     IdentDef ident;
     TypePtr type;
+    TypeDecl() {}
+    TypeDecl(IdentDef i, TypePtr t) : ident(i), type(t) {}
+    TypeDecl(IdentDef i) : ident(i) {
+        type = make_type<ImportTypeName>(ident);
+    }
 };
 
 using VariableDecl = FieldList;
@@ -48,15 +53,50 @@ struct Import {
 
 using ImportList = std::vector<Import>;
 
-struct Module : Section {
+struct IModule : Section {
+    virtual Ident get_name() const = 0;
+    virtual ImportList get_imports() const = 0;
+};
+
+struct Module : IModule {
     std::string to_string() const override;
     Module() {}
     Module(Ident n, ImportList i, DeclarationSequence d, StatementSequence b)
         : name(n), imports(i), declarations(d), body(b) {}
+    Ident get_name() const override { return name; };
+    ImportList get_imports() const override { return imports; }
     Ident name;
     ImportList imports;
     DeclarationSequence declarations;
     StatementSequence body;
+};
+
+struct ProcedureDefinition : Section {
+    std::string to_string() const override;
+    ProcedureDefinition() {}
+    ProcedureDefinition(IdentDef n, ProcedureType t)
+        : name(n), type(t) {}
+    IdentDef name;
+    ProcedureType type;
+};
+
+struct DefinitionSequence {
+    std::vector<ConstDecl> constDecls;
+    std::vector<TypeDecl> typeDecls;
+    std::vector<VariableDecl> variableDecls;
+    std::vector<ProcedureDefinition> procedureDecls;
+};
+
+struct Definition : IModule {
+    std::string to_string() const override;
+    Definition() {}
+    Definition(Ident n, ImportList i, DefinitionSequence d)
+        : name(n), imports(i), definitions(d) {}
+    Ident get_name() const override { return name; };
+    ImportList get_imports() const override { return imports; }
+    Ident name;
+    ImportList imports;
+    DefinitionSequence definitions;
 };
 
 } // namespace nodes

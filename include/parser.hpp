@@ -7,4 +7,4 @@
 
 #include "nodes.hpp"
 
-ParserPtr<nodes::Module> get_parser();
+ParserPtr<std::shared_ptr<nodes::IModule>> get_parsers();

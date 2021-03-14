@@ -19,9 +19,10 @@ std::string format_error(const char* text, int color, CodeStream* code, CodePlac
     auto length = code->line_length(place.line);
     int i = int(length) - column - 2;
     auto line = code->get_line(place.line);
+    auto spaceCount = column >= 3 ? column - 3 : 0;
     return fmt::format("{} on {}: ", format_color(color, text), place) + fmt::format("{}\n", error) +
            fmt::format("{}\n", std::string(line.size(), '-')) + fmt::format("{}", line) +
-           fmt::format("{}{}{}\n", std::string(column - 3, ' '), format_color(color, "~~~^~~~"),
+           fmt::format("{}{}{}\n", std::string(spaceCount, ' '), format_color(color, "~~~^~~~"),
                        std::string(i >= 0 ? i : 0, ' ')) +
            fmt::format("{}\n", std::string(line.size(), '-'));
 }

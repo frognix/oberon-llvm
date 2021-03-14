@@ -17,7 +17,7 @@ void IOManager::add_top_level_error(std::string err) {
 
 void IOManager::write_errors() const {
     for (auto err : top_level_errors) {
-        std::cerr << fmt::format("IO: {}", err);
+        std::cerr << fmt::format("IO: {}\n", err);
     }
     message_manager.write_errors(std::cerr);
 }

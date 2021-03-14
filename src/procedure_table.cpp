@@ -1,31 +1,35 @@
 #include "procedure_table.hpp"
 
-ParseReturnType ProcedureTable::parse(nodes::Ident name, nodes::ProcedureType type,
-                                          std::optional<nodes::ExpressionPtr> ret,
-                                          nodes::StatementSequence body, nodes::DeclarationSequence seq,
-                                          SymbolTable* parent, MessageContainer& mm) {
+std::unique_ptr<ProcedureTable> ProcedureTable::parse(const nodes::ProcedureDeclaration& proc, const nodes::ProcedureType& type, const SymbolTableI* parent, MessageContainer& mm) {
     std::unique_ptr<ProcedureTable> table(new ProcedureTable());
-    table->m_name = name;
-    table->m_type = type;
-    table->m_ret = ret;
+    table->m_name = proc.name.ident;
     table->m_parent = parent;
-    for (auto section : table->m_type.params.params) {
+    for (auto section : type.params.params) {
         auto group = section.var ? SymbolGroup::VAR : SymbolGroup::CONST;
         MessageContainer messages;
-        auto res = table->SymbolTable::add_symbol(messages, nodes::IdentDef{section.ident, false}, group, section.type);
-        if (!res) return error;
+        auto res = table->symbols.add_symbol(messages, nodes::IdentDef{section.ident, false}, group, section.type);
+        if (!res) return nullptr;
     }
-    return SymbolTable::base_parse(std::unique_ptr<SymbolTable>(table.release()), seq, body, mm);
+    auto context = nodes::Context(mm, *table);
+    auto func = [&table](auto ident, auto& context) {
+        if (ident.def) {
+            context.messages.addErr(ident.ident.place, "Cannot export local variable {}", ident.ident);
+            return false;
+        }
+        return true;
+    };
+    SymbolTable::parse(table->symbols, context, proc.decls, proc.body, func);
+    return table;
 }
 
 Maybe<SymbolToken> ProcedureTable::get_symbol(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (ident.qual) {
         return m_parent->get_symbol(messages, ident, secretly);
     } else {
-        if (!SymbolTable::has_symbol(ident)) {
+        if (!symbols.has_symbol(ident)) {
             return m_parent->get_symbol(messages, ident, secretly);
         } else {
-            auto res = SymbolTable::get_symbol(messages, ident, secretly);
+            auto res = symbols.get_symbol(messages, ident, secretly);
             if (!res) return error;
             return res;
         }
@@ -36,35 +40,21 @@ Maybe<nodes::ExpressionPtr> ProcedureTable::get_value(MessageContainer& messages
     if (ident.qual) {
         return m_parent->get_value(messages, ident, secretly);
     } else {
-        if (!SymbolTable::has_symbol(ident)) {
+        if (!symbols.has_symbol(ident)) {
             return m_parent->get_value(messages, ident, secretly);
         } else {
-            auto res = SymbolTable::get_value(messages, ident, secretly);
+            auto res = symbols.get_value(messages, ident, secretly);
             if (!res) return error;
             return res;
         }
     }
 }
 
-Maybe<TablePtr> ProcedureTable::get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
-    if (ident.qual) {
-        return m_parent->get_table(messages, ident, secretly);
-    } else {
-        if (!SymbolTable::has_symbol(ident)) {
-            return m_parent->get_table(messages, ident, secretly);
-        } else {
-            auto res = SymbolTable::get_table(messages, ident, secretly);
-            if (!res) return error;
-            return res;
-        }
-    }
+std::string ProcedureTable::to_string() const {
+    return symbols.to_string();
 }
 
-bool ProcedureTable::add_symbol(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
-    if (ident.def) {
-        messages.addErr(ident.ident.place, "Cannot export local variable {}", ident.ident);
-        return berror;
-    } else {
-        return SymbolTable::add_symbol(messages, ident, group, type);
-    }
+bool ProcedureTable::analyze_code(MessageContainer& messages) const {
+    auto context = nodes::Context(messages, *this);
+     return symbols.analyze_code(context);
 }

@@ -25,3 +25,11 @@ std::string Module::to_string() const {
     return fmt::format("MODULE {}; IMPORT {}\n{}\nBEGIN\n{}\nEND {}.", name, fmt::join(imports, ", "), declarations,
                        body, name);
 }
+
+std::string ProcedureDefinition::to_string() const {
+    return fmt::format("PROCEDURE {} {};", name, type.to_string());
+}
+
+std::string Definition::to_string() const {
+    return fmt::format("DEFINITION {}; IMPORT {}\n definitions END {}", name, fmt::join(imports, ", "), name);
+}

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "parser.hpp"
-#include "module_table.hpp"
+#include "module_table_i.hpp"
 #include "io_manager.hpp"
 
 #include <chrono>
@@ -15,9 +15,9 @@ using ModuleResult = std::variant<ModuleLoader, std::string>;
 
 class ModuleLoader {
 public:
-    ModuleLoader(ParserPtr<nodes::Module> p) : parser(p) {}
-    SemanticUnitI* load(IOManager& io, std::string name);
+    ModuleLoader(ParserPtr<std::shared_ptr<nodes::IModule>> p) : parser(p) {}
+    ModuleTableI* load(IOManager& io, std::string name);
 private:
-    ParserPtr<nodes::Module> parser;
-    std::unordered_map<nodes::Ident, std::unique_ptr<SemanticUnitI>> units;
+    ParserPtr<std::shared_ptr<nodes::IModule>> parser;
+    std::unordered_map<nodes::Ident, std::unique_ptr<ModuleTableI>> units;
 };

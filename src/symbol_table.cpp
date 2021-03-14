@@ -1,24 +1,19 @@
 #include "symbol_table.hpp"
 #include "procedure_table.hpp"
 
-ParseReturnType SymbolTable::parse(const nodes::DeclarationSequence& seq, nodes::StatementSequence body, MessageContainer& mm) {
-    std::unique_ptr<SymbolTable> table(new SymbolTable());
-    return SymbolTable::base_parse(std::move(table), seq, body, mm);
-}
-
-ParseReturnType SymbolTable::base_parse(std::unique_ptr<SymbolTable> table, const nodes::DeclarationSequence& seq, nodes::StatementSequence body, MessageContainer& mm) {
-    table->body = body;
-    auto context = nodes::Context(mm, *table.get());
+bool SymbolTable::parse(SymbolTable& table, nodes::Context& context, const nodes::DeclarationSequence& seq, nodes::StatementSequence body, std::function<bool(nodes::IdentDef,nodes::Context&)> func)  {
+    table.body = body;
     for (auto& decl : seq.constDecls) {
         auto res = decl.expression->eval(context);
-        if (!res) return error;
+        if (!res) return berror;
         auto expr = *res;
         if (auto exprRes = expr->get_type(context); exprRes) {
             auto [group, type] = *exprRes;
-            auto res = table->add_value(mm, decl.ident, group, type, expr);
-            if (!res) return error;
+            if (!func(decl.ident, context)) return berror;
+            auto res = table.add_value(context.messages, decl.ident, group, type, expr);
+            if (!res) return berror;
         } else {
-            return error;
+            return berror;
         }
     }
     std::vector<nodes::TypeDecl> unchecked_types;
@@ -29,46 +24,48 @@ ParseReturnType SymbolTable::base_parse(std::unique_ptr<SymbolTable> table, cons
             type = decl.type;
         } else {
             auto res = decl.type->normalize(context, false);
-            if (!res) return error;
+            if (!res) return berror;
             type = *res;
         }
-        auto res = table->add_symbol(mm, decl.ident, SymbolGroup::TYPE, type);
-        if (!res) return error;
+        if (!func(decl.ident, context)) return berror;
+        auto res = table.add_symbol(context.messages, decl.ident, SymbolGroup::TYPE, type);
+        if (!res) return berror;
     }
     for (auto& decl : unchecked_types) {
-        auto type = table->symbols[decl.ident.ident].type;
+        auto type = table.symbols[decl.ident.ident].type;
         auto res = dynamic_cast<nodes::PointerType*>(type.get())->check_type(context);
-        if (!res) return error;
+        if (!res) return berror;
     }
     for (auto& decl : seq.variableDecls) {
         if (auto type = decl.type->normalize(context, false); !type) {
-            return error;
+            return berror;
         } else {
             for (auto& var : decl.list) {
-                auto res = table->add_symbol(mm, var, SymbolGroup::VAR, *type);
-                if (!res) return error;
+                if (!func(var, context)) return berror;
+                auto res = table.add_symbol(context.messages, var, SymbolGroup::VAR, *type);
+                if (!res) return berror;
             }
         }
     }
     for (auto& _decl : seq.procedureDecls) {
         auto& decl = *dynamic_cast<nodes::ProcedureDeclaration*>(_decl.get());
         if (auto type = decl.type.normalize(context, false); !type) {
-            return error;
+            return berror;
         } else {
-            auto res = ProcedureTable::parse(decl.name.ident, *type.value()->is<typename nodes::ProcedureType>(), decl.ret, decl.body, decl.decls, table.get(), mm);
-            if (!res) return error;
-            auto res1 = table->add_table(mm, decl.name, SymbolGroup::CONST, *type, TablePtr(dynamic_cast<SymbolTable*>(res->release())));
-            if (!res1) return error;
+            auto res = ProcedureTable::parse(decl, *type.value()->is<typename nodes::ProcedureType>(), &context.symbols, context.messages);
+            if (!res.get()) return berror;
+            if (!func(decl.name, context)) return berror;
+            auto res1 = table.add_table(context.messages, decl.name, SymbolGroup::CONST, *type, TablePtr(res.release()));
+            if (!res1) return berror;
         }
     }
-    return std::optional(std::unique_ptr<SemanticUnitI>(table.release()));
+    return bsuccess;
 }
 
-bool SymbolTable::analyze_code(MessageContainer& messages) const {
-    auto context = nodes::Context(messages, *this);
+bool SymbolTable::analyze_code(nodes::Context& context) const {
     auto serror = false;
     for (auto& [name, table] : tables) {
-        auto res = table->analyze_code(messages);
+        auto res = table->analyze_code(context.messages);
         if (!res) serror = true;
     }
     for (auto& statement : body) {
@@ -77,7 +74,7 @@ bool SymbolTable::analyze_code(MessageContainer& messages) const {
     }
     for (auto [name, symbol] : symbols) {
         if (symbol.count == 0)
-            messages.addFormat(MPriority::W4, symbol.name.ident.place, "Unised symbol: {}", symbol.name);
+            context.messages.addFormat(MPriority::W4, symbol.name.ident.place, "Unised symbol: {}", symbol.name);
     }
     if (serror) return berror;
     return bsuccess;
@@ -147,22 +144,6 @@ Maybe<nodes::ExpressionPtr> SymbolTable::get_value(MessageContainer& messages, c
             if (!secretly)
                 const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return nodes::ExpressionPtr(res->second);
-        } else {
-            messages.addMessage(msg);
-            return error;
-        }
-    }
-}
-Maybe<TablePtr> SymbolTable::get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
-    auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
-    if (ident.qual) {
-        messages.addMessage(msg);
-        return error;
-    } else {
-        if (auto res = tables.find(ident.ident); res != tables.end()) {
-            if (!secretly)
-                const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
-            return TablePtr(res->second);
         } else {
             messages.addMessage(msg);
             return error;

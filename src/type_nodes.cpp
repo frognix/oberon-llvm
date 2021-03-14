@@ -205,6 +205,14 @@ Maybe<TypePtr> TypeName::normalize(Context& context, bool normalize_pointers) {
     return symbol->type->normalize(context, normalize_pointers);
 }
 
+std::string ImportTypeName::to_string() const {
+    return fmt::format("${}", ident);
+}
+
+Maybe<TypePtr> ImportTypeName::normalize(Context&, bool) {
+    return make_type<ImportTypeName>(*this);
+}
+
 std::string RecordType::to_string() const {
     if (basetype)
         return fmt::format("RECORD ({}) {} END", *basetype, seq);

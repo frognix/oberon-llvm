@@ -2,22 +2,17 @@
 
 #include "symbol_table.hpp"
 
-class ProcedureTable : public SymbolTable {
+class ProcedureTable : public SemanticUnitI {
 public:
-    static ParseReturnType parse(nodes::Ident, nodes::ProcedureType,
-                                          std::optional<nodes::ExpressionPtr>,
-                                          nodes::StatementSequence, nodes::DeclarationSequence,
-                                          SymbolTable*, MessageContainer&);
+    static std::unique_ptr<ProcedureTable> parse(const nodes::ProcedureDeclaration& proc, const nodes::ProcedureType& type, const SymbolTableI* parent, MessageContainer& mm);
     virtual Maybe<SymbolToken> get_symbol(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
     virtual Maybe<nodes::ExpressionPtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
-    virtual Maybe<TablePtr> get_table(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
 
-    virtual bool add_symbol(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) override;
-
+    virtual std::string to_string() const override;
+    bool analyze_code(MessageContainer& messages) const override;
 private:
-    ProcedureTable() {}
+    ProcedureTable() {};
     nodes::Ident m_name;
-    nodes::ProcedureType m_type;
-    std::optional<nodes::ExpressionPtr> m_ret;
-    SymbolTable* m_parent;
+    SymbolTable symbols;
+    const SymbolTableI* m_parent;
 };

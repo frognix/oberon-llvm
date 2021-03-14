@@ -1,6 +1,8 @@
 #pragma once
 #include "semantic_context.hpp"
 #include "node.hpp"
+#include <unordered_map>
+#include <unordered_set>
 
 enum class SymbolGroup {
     TYPE,
@@ -40,3 +42,8 @@ struct fmt::formatter<SymbolToken> {
         return fmt::format_to(ctx.out(), "{{{}, {}, {}, {}}}", sym.name, group_to_str(sym.group), sym.type, sym.count);
     }
 };
+
+template <class T>
+using SymbolMap = std::unordered_map<nodes::Ident, T>;
+
+using SymbolSet = std::unordered_set<nodes::Ident>;
