@@ -121,7 +121,7 @@ ParserPtr<char> comment() {
 }
 
 ParserPtr<std::vector<char>> delim() {
-    return many(either({symbol(' '), symbol('\n'), symbol('\t'), comment()}));
+    return many(either({symbol(' '), symbol('\r'), symbol('\n'), symbol('\t'), comment()}));
 }
 
 template <class T, class D>
@@ -375,7 +375,7 @@ auto expression_parser() {
     ParserPtr<ExpList> expList = extra_delim(expression, symbol(','));
 
     ParserPtr<Designator> designator = construct<Designator>(
-        sequence(qualident, many(variant(parse_index<1>::select(symbol('.'), ident),
+        syntax_sequence(qualident, many(variant(parse_index<1>::select(symbol('.'), ident),
                                          syntax_index<1>::select(symbol('['), expList, symbol(']')), symbol('^'),
                                          syntax_index<1>::select(symbol('('), qualident, symbol(')'))))));
 

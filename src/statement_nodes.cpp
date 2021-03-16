@@ -8,7 +8,7 @@
 
 using namespace nodes;
 
-bool nodes::check_statements(Context& context, const StatementSequence& seq) {
+inline bool check_statements(Context& context, const StatementSequence& seq) {
     bool result = true;
     for (auto& statement : seq) {
         if (!statement->check(context))
@@ -114,8 +114,8 @@ std::string RepeatStatement::to_string() const {
     return fmt::format("REPEAT {} UNTIL\n{}", block, cond);
 }
 
-bool RepeatStatement::check(Context&) const {
-    return bsuccess;
+bool RepeatStatement::check(Context& context) const {
+    return check_if_block(context, if_block);
 }
 
 std::string ForStatement::to_string() const {
