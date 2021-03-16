@@ -42,34 +42,18 @@ std::optional<char> CodeStream::peek() const noexcept {
     return m_data[m_index];
 }
 
-std::string_view CodeStream::get_line(size_t num) const noexcept {
-    CodePlace place;
-    place.line = num;
-    size_t index = place_to_index(place);
-    size_t length = m_data_structure[num];
-    return std::string_view(m_data).substr(index, length);
+std::string_view CodeStream::get_line(CodePlace place) const noexcept {
+    auto point = get_code_point(place);
+    size_t length = m_data_structure[point.line];
+    return std::string_view(m_data).substr(place.get_index()-point.column, length);
 }
 
-CodePlace CodeStream::index_to_place(size_t index) const noexcept {
-    CodePlace place;
-    place.file = m_filename;
-    for (auto length : m_data_structure) {
-        if (index > length) {
-            place.line++;
-            index -= length;
-        } else {
-            place.column = index;
-            break;
-        }
+CodePoint CodeStream::get_code_point(CodePlace place) const noexcept {
+    auto index = place.get_index();
+    size_t line = 0;
+    for (int i = 0; m_data_structure[i] < index; i++) {
+        index -= m_data_structure[i];
+        line++;
     }
-    return place;
-}
-
-size_t CodeStream::place_to_index(CodePlace place) const noexcept {
-    size_t index = 0;
-    for (size_t i = 0; i < place.line; i++) {
-        index += m_data_structure[i];
-    }
-    index += place.column;
-    return index;
+    return CodePoint{line, index};
 }

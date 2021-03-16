@@ -5,27 +5,31 @@
 #include <fstream>
 #include <optional>
 
+class CodeStream;
+
 struct CodePlace {
-    CodePlace() : line(0), column(0) {}
-    CodePlace(size_t l, size_t c) : line(l), column(c) {}
-    void new_line() {
-        line++;
-        column = 0;
-    }
-    std::string file;
+    CodePlace() : index(0) {} //Нужно только потому что в некоторых узлах он пуст
+    CodePlace(size_t p) : index(p) {}
+    inline size_t get_index() const { return index; }
+private:
+    size_t index;
+};
+
+struct CodePoint {
     size_t line;
     size_t column;
 };
 
 template <>
-struct fmt::formatter<CodePlace> {
+struct fmt::formatter<CodePoint> {
     template <typename ParseContext>
     constexpr auto parse(ParseContext& ctx) {
         return ctx.begin();
     }
+
     template <typename FormatContext>
-    auto format(CodePlace const& id, FormatContext& ctx) {
-        return fmt::format_to(ctx.out(), "{}:{}:{}", id.file, id.line, id.column);
+    auto format(CodePoint const& point, FormatContext& ctx) {
+        return fmt::format_to(ctx.out(), "{}:{}", point.line, point.column);
     }
 };
 
@@ -38,7 +42,7 @@ class CodeStream {
 
     bool is_open() const noexcept { return m_data.size() != 0; }
     std::string_view get_filename() const noexcept { return m_filename; }
-    CodePlace place() const noexcept { return index_to_place(m_index); }
+    CodePlace place() const noexcept { return CodePlace(m_index); }
     size_t index() const noexcept { return m_index; }
     bool can_move_to(size_t index) noexcept { return index >= m_no_return_point; }
     void move_to(size_t index) noexcept {
@@ -55,12 +59,10 @@ class CodeStream {
     std::optional<char> get() noexcept;
     std::optional<std::string> get(size_t size) noexcept;
     std::optional<char> peek() const noexcept;
-    std::string_view get_line(size_t num) const noexcept;
+    std::string_view get_line(CodePlace num) const noexcept;
+    CodePoint get_code_point(CodePlace place) const noexcept;
 
   private:
-    CodePlace index_to_place(size_t index) const noexcept;
-    size_t place_to_index(CodePlace place) const noexcept;
-
     std::string m_data;
     size_t m_index;
     size_t m_no_return_point;

@@ -490,8 +490,9 @@ class Debug : public Parser<T> {
         char peek = '\0';
         if (auto peek_res = stream.peek(); peek_res)
             peek = *peek_res;
-        auto fmt_str = fmt::format("Debug: {{}} ({})\n {{}} Stream current place: {}:{}:{} ({})\n", m_name,
-                                   stream.get_filename(), place.line, place.column, peek);
+        auto point = stream.get_code_point(place);
+        auto fmt_str = fmt::format("Debug: {{}} ({})\n {{}} Stream current place: {}:{} ({})\n", m_name,
+                                   stream.get_filename(), point, peek);
         if (res) {
             fmt::print(fmt_str, "success", "");
             return res;

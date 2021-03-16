@@ -74,7 +74,7 @@ bool SymbolTable::analyze_code(nodes::Context& context) const {
     }
     for (auto [name, symbol] : symbols) {
         if (symbol.count == 0)
-            context.messages.addFormat(MPriority::W4, symbol.name.ident.place, "Unised symbol: {}", symbol.name);
+            context.messages.addFormat(MPriority::W4, symbol.name.ident.place, "Unused symbol: {}", symbol.name);
     }
     if (serror) return berror;
     return bsuccess;
@@ -84,8 +84,8 @@ bool SymbolTable::add_symbol(MessageContainer& messages, nodes::IdentDef ident, 
     if (symbols.contains(ident.ident)) {
         auto symbol = symbols[ident.ident];
         messages.addErr(ident.ident.place, "Redefinition of symbol {}", ident.ident);
-        messages.addFormat(MPriority::W1, ident.ident.place, "{} First definition here", symbol.name.ident.place);
-        messages.addFormat(MPriority::W1, ident.ident.place, "{} Second definition here", ident.ident.place);
+        // messages.addFormat(MPriority::W1, ident.ident.place, "{} First definition here", symbol.name.ident.place);
+        // messages.addFormat(MPriority::W1, ident.ident.place, "{} Second definition here", ident.ident.place);
         return berror;
     } else {
         SymbolToken symbol;
