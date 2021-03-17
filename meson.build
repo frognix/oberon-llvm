@@ -8,8 +8,6 @@ incdir = include_directories('include')
 
 src = [
   './src/main.cpp',
-  './src/plib/format.cpp',
-  './src/plib/code_stream.cpp',
   './src/parser.cpp',
   './src/expression_nodes.cpp',
   './src/type_nodes.cpp',
