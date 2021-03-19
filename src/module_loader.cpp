@@ -18,25 +18,18 @@ std::unique_ptr<ModuleTableI> load_module(std::shared_ptr<nodes::IModule> module
 }
 
 ModuleTableI* ModuleLoader::load(IOManager& io, std::string module_name) {
-    auto res = io.get_file_manager().get_file(module_name);
+    auto res = io.get_code_file(module_name);
     if (!res) return nullptr;
-    auto [path, code] = *res;
-    auto messages = *io.get_message_manager().get_container(path);
-    std::string str = "";
-    for (auto& [name, mod] : units) {
-        str += name.to_string() + ",";
-    }
-    fmt::print("{} : {}\n", module_name, str);
+    auto [code, messages] = *res;
     std::chrono::time_point<std::chrono::steady_clock> start, end;
     std::chrono::milliseconds parse_duration;
     start = std::chrono::steady_clock::now();
     auto parseResult = parser->parse(*code);
-    // fmt::print("{}\n", parseResult.get_ok()->to_string());
     end = std::chrono::steady_clock::now();
     parse_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    fmt::print("Module {} parse time: {}ms\n", module_name, parse_duration.count());
+    io.log("Time", fmt::format("Module {} parse time: {}ms", module_name, parse_duration.count()));
     if (!parseResult) {
-        messages->addErr(parseResult.get_err().place, parseResult.get_err().to_string().c_str());
+        messages.addErr(parseResult.get_err().place, parseResult.get_err().to_string().c_str());
         return nullptr;
     }
     auto moduleTree = parseResult.get_ok();
@@ -45,7 +38,7 @@ ModuleTableI* ModuleLoader::load(IOManager& io, std::string module_name) {
     for (auto& import : moduleTree->get_imports()) {
         if (auto unitRes = units.find(import.real_name); unitRes != units.end()) {
             if (unitRes->second.get() == nullptr) {
-                messages->addErr(import.name.place, "Can't analyze module {} because of error in module {}", moduleTree->get_name(), import.real_name);
+                messages.addErr(import.name.place, "Can't analyze module {} because of error in module {}", moduleTree->get_name(), import.real_name);
                 import_error = true;
             } else {
                 std::pair pair(import, static_cast<const ModuleTableI*>(unitRes->second.get()));
@@ -63,10 +56,10 @@ ModuleTableI* ModuleLoader::load(IOManager& io, std::string module_name) {
         }
     }
     if (import_error) return nullptr;
-    auto moduleRes = load_module(moduleTree, imports, *messages);
+    auto moduleRes = load_module(moduleTree, imports, messages);
     if (!moduleRes.get()) return nullptr;
 
-    if (!moduleRes->analyze_code(*messages)) return nullptr;
+    if (!moduleRes->analyze_code(messages)) return nullptr;
 
     units[moduleTree->get_name()] = std::move(moduleRes);
     return units[moduleTree->get_name()].get();

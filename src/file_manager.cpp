@@ -20,21 +20,17 @@ std::optional<fs::path> find_file(const std::vector<fs::path> dirs, fs::path fil
     return {};
 }
 
-std::optional<std::pair<fs::path, CodeStream*>> FileManager::get_file(std::string path) {
+std::optional<CodeStream*> FileManager::get_file(std::string path) {
     auto res = files.find(path);
-    if (res != files.end()) return {{path, &res->second}};
+    if (res != files.end()) return {&res->second};
     auto filepath = find_file({"./", "/usr/share/doc/obnc/obncdoc/obnc/"}, path, {".Mod", ".mod", ".def"});
-    if (!filepath) {
-        io_manager->add_top_level_error(fmt::format("File with module name '{}' not found", path.c_str()));
+    if (!filepath)
         return std::nullopt;
-    }
     CodeStream file(*filepath);
-    if (!file.open()) {
-        io_manager->add_top_level_error(fmt::format("File {} not found", filepath->c_str()));
+    if (!file.open())
         return std::nullopt;
-    }
     auto [it, success] = files.insert({*filepath, std::move(file)});
-    return {{it->first, &it->second}};
+    return {&it->second};
 }
 
 bool FileManager::is_open(fs::path file) {

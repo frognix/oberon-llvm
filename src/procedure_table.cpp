@@ -1,17 +1,16 @@
 #include "procedure_table.hpp"
 
-std::unique_ptr<ProcedureTable> ProcedureTable::parse(const nodes::ProcedureDeclaration& proc, const nodes::ProcedureType& type, const SymbolTableI* parent, MessageContainer& mm) {
+std::unique_ptr<ProcedureTable> ProcedureTable::parse(const nodes::ProcedureDeclaration& proc, const nodes::ProcedureType& type, const SymbolTableI* parent, MessageContainer& messages) {
     std::unique_ptr<ProcedureTable> table(new ProcedureTable());
     table->m_name = proc.name.ident;
     table->m_parent = parent;
     for (auto section : type.params.params) {
         auto group = section.var ? SymbolGroup::VAR : SymbolGroup::CONST;
-        MessageContainer messages;
         auto res = table->symbols.add_symbol(messages, nodes::IdentDef{section.ident, false}, group, section.type);
         if (!res) return nullptr;
     }
-    auto context = nodes::Context(mm, *table);
-    auto func = [&table](auto ident, auto& context) {
+    auto context = nodes::Context(messages, *table);
+    auto func = [](auto ident, auto& context) {
         if (ident.def) {
             context.messages.addErr(ident.ident.place, "Cannot export local variable {}", ident.ident);
             return false;

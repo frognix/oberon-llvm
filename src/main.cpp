@@ -28,7 +28,6 @@ int main(int argc, char* argv[]) {
     if (res) {
         fmt::print("{}", res->to_string());
     }
-    io.write_errors();
     if (!res) fmt::print(format_red("Exit with error\n"));
 
     return 0;

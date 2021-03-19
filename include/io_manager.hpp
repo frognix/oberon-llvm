@@ -1,16 +1,15 @@
 #pragma once
-#include "message_manager.hpp"
+#include "message_container.hpp"
 #include "file_manager.hpp"
+#include <filesystem>
+#include <optional>
+#include <string_view>
 
 class IOManager {
 public:
     IOManager() noexcept;
-    MessageManager& get_message_manager();
-    FileManager& get_file_manager();
-    void add_top_level_error(std::string);
-    void write_errors() const;
+    std::optional<std::pair<CodeStream*,MessageContainer>> get_code_file(fs::path) noexcept;
+    void log(std::string_view, std::string_view) noexcept;
 private:
     FileManager file_manager;
-    MessageManager message_manager;
-    std::vector<std::string> top_level_errors;
 };

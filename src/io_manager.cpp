@@ -1,23 +1,21 @@
 #include "io_manager.hpp"
+#include "message_container.hpp"
 #include <iostream>
+#include <optional>
+#include "plib/format.hpp"
 
-IOManager::IOManager() noexcept : file_manager(this), message_manager(this, &file_manager) {}
+IOManager::IOManager() noexcept {}
 
-MessageManager& IOManager::get_message_manager() {
-    return message_manager;
-}
-
-FileManager& IOManager::get_file_manager() {
-    return file_manager;
-}
-
-void IOManager::add_top_level_error(std::string err) {
-    top_level_errors.push_back(err);
-}
-
-void IOManager::write_errors() const {
-    for (auto err : top_level_errors) {
-        std::cerr << fmt::format("IO: {}\n", err);
+std::optional<std::pair<CodeStream*,MessageContainer>> IOManager::get_code_file(fs::path path) noexcept {
+    auto file = file_manager.get_file(path);
+    if (!file) {
+        log("IO", fmt::format("File '{}' not found", path.c_str()));
+        return std::nullopt;
     }
-    message_manager.write_errors(std::cerr);
+    return std::pair{*file, MessageContainer(std::cerr, *file.value())};
+}
+
+void IOManager::log(std::string_view type, std::string_view text) noexcept {
+    auto header = format_color(Blue, fmt::format("Log({}): ", type));
+    std::cerr << fmt::format("{} {}\n", header, text);
 }
