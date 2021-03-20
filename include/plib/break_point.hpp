@@ -1,12 +1,25 @@
 #include "code_stream.hpp"
 #include "parse_error.hpp"
 
+/*!
+ * \brief Точка возврата для парсера.
+ *
+ * Отвечает за сохранение точки в файле в которую парсер
+ * может вернуться в случае неудачи.
+ */
 class BreakPoint {
   public:
     BreakPoint(CodeStream& stream) : m_stream(stream) { m_index = m_stream.index(); }
 
+    //! Сброс точки возврата
     void close() { state = CLOSED; }
 
+    /*!
+     * \brief Передача ошибки из парсера.
+     *
+     * В случае ошибки парсер должен передать её в точку возрата
+     * которая определит возможен ли возврат после этой ошибки или нет.
+     */
     void error(ParseError& err) {
         if (err.is_undroppable()) {
             state = CLOSED;
@@ -18,6 +31,9 @@ class BreakPoint {
         }
     }
 
+    /*!
+     * Деструктор производит возврат если это возможно.
+     */
     ~BreakPoint() {
         if (state == OPEN) {
             m_stream.move_to(m_index);
@@ -28,11 +44,12 @@ class BreakPoint {
     }
 
   private:
+    //! Состояние точки возврата
     enum {
-        INVALID,
-        CLOSED,
-        OPEN,
+        INVALID, //!< Невалидное состояние
+        CLOSED,  //!< Точка не действует
+        OPEN,    //!< Точка действует
     } state = INVALID;
-    CodeStream& m_stream;
-    size_t m_index;
+    CodeStream& m_stream; //!< Поток к которому относится данная точка
+    size_t m_index; //!< Индекс к которому необходимо вернуться
 };
