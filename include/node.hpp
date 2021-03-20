@@ -1,7 +1,7 @@
 #pragma once
 
 #include "parser_tools.hpp"
-#include "plib/code_stream.hpp"
+#include "plib/code_iterator.hpp"
 #include "semantic_context.hpp"
 
 class SemanticContext;

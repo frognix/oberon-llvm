@@ -24,15 +24,16 @@ ModuleTableI* ModuleLoader::load(IOManager& io, std::string module_name) {
     std::chrono::time_point<std::chrono::steady_clock> start, end;
     std::chrono::milliseconds parse_duration;
     start = std::chrono::steady_clock::now();
-    auto parseResult = parser->parse(*code);
+    auto code_iterator = code->get_iterator();
+    auto parseResult = parser->parse(code_iterator);
     end = std::chrono::steady_clock::now();
     parse_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     io.log("Time", fmt::format("Module {} parse time: {}ms", module_name, parse_duration.count()));
     if (!parseResult) {
-        messages.addErr(parseResult.get_err().place, parseResult.get_err().to_string().c_str());
+        messages.addErr(code_iterator.place(), code_iterator.format_error().c_str());
         return nullptr;
     }
-    auto moduleTree = parseResult.get_ok();
+    auto moduleTree = parseResult.value();
     auto import_error = false;
     std::vector<std::pair<nodes::Import, ModuleTablePtr>> imports;
     for (auto& import : moduleTree->get_imports()) {

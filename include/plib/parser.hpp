@@ -1,20 +1,20 @@
 #pragma once
 
-#include "code_stream.hpp"
-#include "parse_error.hpp"
-// #include "reassign_ptr.hpp"
+#include "code_iterator.hpp"
 #include "graph_ptr.hpp"
-#include "result.hpp"
+#include <optional>
 
 template <class T>
-using ParseResult = Result<T, ParseError>;
+using ParseResult = std::optional<T>;
+
+const auto parse_error = std::nullopt;
 
 template <class T>
 class Parser {
   public:
     using ResultType = T;
     using PResult = ParseResult<T>;
-    virtual PResult parse(CodeStream& stream) const noexcept = 0;
+    virtual PResult parse(CodeIterator& stream) const noexcept = 0;
     virtual ~Parser() {}
 };
 

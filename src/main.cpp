@@ -1,10 +1,15 @@
 #include "module_loader.hpp"
+#include "plib/format.hpp"
 #include <iostream>
 
 inline void writeHelp(std::ostream& stream) {
     stream << "Usage: oberon INFILE [OUTFILE]" << std::endl << "With no OUTFILE write to standard output" <<
     std::endl;
 }
+
+struct Ident {
+    std::vector<char> vec;
+};
 
 int main(int argc, char* argv[]) {
     std::string_view programName{argv[0]};

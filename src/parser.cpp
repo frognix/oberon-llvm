@@ -20,21 +20,14 @@ template <class T>
 class EqualTo : public Parser<T> {
   public:
     EqualTo(ParserPtr<T> parser, T&& value) : m_parser(parser), m_value(std::forward<T>(value)) {}
-    ParseResult<T> parse(CodeStream& stream) const noexcept override {
+    ParseResult<T> parse(CodeIterator& stream) const noexcept override {
         BreakPoint point(stream);
-        if (auto res = m_parser->parse(stream); res) {
-            if (res.get_ok() == m_value) {
-                point.close();
-                return res;
-            } else {
-                auto err = ParseError(fmt::format("{}", m_value), res.get_ok(), stream);
-                point.error(err);
-                return err;
-            }
-        } else {
-            point.error(res.err_ref());
+        if (auto res = m_parser->parse(stream); res && res.value() == m_value) {
+            point.close();
             return res;
         }
+        stream.error_expected(fmt::format("{}", m_value));
+        return parse_error;
     }
 
   private:
@@ -75,7 +68,7 @@ class Limiters : public Parser<std::vector<T>> {
   public:
     Limiters(ParserPtr<E> begin, ParserPtr<T> parser, ParserPtr<E> end)
         : m_begin(begin), m_parser(parser), m_end(end) {}
-    ParseResult<std::vector<T>> parse(CodeStream& stream) const noexcept override {
+    ParseResult<std::vector<T>> parse(CodeIterator& stream) const noexcept override {
         std::vector<T> result;
         BreakPoint point(stream);
         if (auto bres = m_begin->parse(stream); bres) {
@@ -84,21 +77,15 @@ class Limiters : public Parser<std::vector<T>> {
                     point.close();
                     return result;
                 } else if (auto pres = m_parser->parse(stream); pres) {
-                    point.error(eres.err_ref());
-                    if (eres.err_ref().is_undroppable())
-                        return eres.get_err();
-                    result.push_back(pres.get_ok());
+                    result.push_back(pres.value());
                 } else {
-                    point.error(pres.err_ref());
-                    if (pres.err_ref().is_undroppable())
-                        return pres.get_err();
-                    return ParseError("sequence", "??", stream);
+                    if (stream.has_undroppable_error())
+                        return parse_error;
+                    return parse_error;
                 }
             }
-        } else {
-            point.error(bres.err_ref());
-            return bres.get_err();
         }
+        return parse_error;
     }
 
   private:
@@ -151,10 +138,10 @@ template <class T>
 class NodeWrapper : public Parser<T> {
   public:
     NodeWrapper(ParserPtr<T> parser) : m_parser(parser) {}
-    ParseResult<T> parse(CodeStream& stream) const noexcept override {
+    ParseResult<T> parse(CodeIterator& stream) const noexcept override {
         auto place = stream.place();
         if (auto res = m_parser->parse(stream); res) {
-            auto ok = res.get_ok();
+            auto ok = res.value();
             ok->place = place;
             return ok;
         } else
@@ -175,10 +162,10 @@ template <class T>
 class SetPlaceWrapper : public Parser<T> {
   public:
     SetPlaceWrapper(ParserPtr<T> parser) : m_parser(parser) {}
-    ParseResult<T> parse(CodeStream& stream) const noexcept override {
+    ParseResult<T> parse(CodeIterator& stream) const noexcept override {
         auto place = stream.place();
         if (auto res = m_parser->parse(stream); res) {
-            auto ok = res.get_ok();
+            auto ok = res.value();
             ok.place = place;
             return ok;
         } else
@@ -377,7 +364,7 @@ auto expression_parser() {
     ParserPtr<Designator> designator = construct<Designator>(
         syntax_sequence(qualident, many(variant(parse_index<1>::select(symbol('.'), ident),
                                          syntax_index<1>::select(symbol('['), expList, symbol(']')), symbol('^'),
-                                         syntax_index<1>::select(symbol('('), qualident, symbol(')'))))));
+                                                syntax_index<1>::select(symbol('('), qualident, symbol(')'))))));
 
     ParserPtr<ExpList> actualParameters = syntax_index<1>::select(symbol('('), maybe_list(expList), symbol(')'));
 
@@ -505,7 +492,7 @@ auto module_parser(ParserPtr<DeclarationSequence> declarationSequence, ParserPtr
         maybe_list(syntax_index<1>::select(keyword("BEGIN"), statementSequence)), keyword("END")));
 
     auto module = parse_index<0>::tuple_select(
-        except(syntax_sequence(moduleBase, ident, symbol('.')), "same module name", [](const auto& pair) {
+       except(syntax_sequence(moduleBase, ident, symbol('.')), "same module name", [](const auto& pair) {
             auto& [mod, ident, dot] = pair;
             return mod.name == ident;
         }));

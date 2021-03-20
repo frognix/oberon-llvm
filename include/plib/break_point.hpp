@@ -1,5 +1,4 @@
-#include "code_stream.hpp"
-#include "parse_error.hpp"
+#include "code_iterator.hpp"
 
 /*!
  * \brief Точка возврата для парсера.
@@ -9,47 +8,33 @@
  */
 class BreakPoint {
   public:
-    BreakPoint(CodeStream& stream) : m_stream(stream) { m_index = m_stream.index(); }
+    BreakPoint(CodeIterator& iter) : m_iter(iter) { m_place = m_iter.place(); }
 
     //! Сброс точки возврата
     void close() { state = CLOSED; }
 
     /*!
-     * \brief Передача ошибки из парсера.
-     *
-     * В случае ошибки парсер должен передать её в точку возрата
-     * которая определит возможен ли возврат после этой ошибки или нет.
-     */
-    void error(ParseError& err) {
-        if (err.is_undroppable()) {
-            state = CLOSED;
-        } else if (!m_stream.can_move_to(m_index)) {
-            state = CLOSED;
-            err.set_undroppable();
-        } else {
-            state = OPEN;
-        }
-    }
-
-    /*!
      * Деструктор производит возврат если это возможно.
      */
     ~BreakPoint() {
+        if (m_iter.has_undroppable_error()) {
+            state = CLOSED;
+        } else if (state != CLOSED && !m_iter.can_move_to(m_place)) {
+            state = CLOSED;
+            m_iter.set_undroppable_error();
+        }
+
         if (state == OPEN) {
-            m_stream.move_to(m_index);
-        } else if (state == INVALID) {
-            fmt::print("Bad usage of breakpoint!\n");
-            std::terminate();
+            m_iter.move_to(m_place);
         }
     }
 
   private:
     //! Состояние точки возврата
     enum {
-        INVALID, //!< Невалидное состояние
         CLOSED,  //!< Точка не действует
         OPEN,    //!< Точка действует
-    } state = INVALID;
-    CodeStream& m_stream; //!< Поток к которому относится данная точка
-    size_t m_index; //!< Индекс к которому необходимо вернуться
+    } state = OPEN;
+    CodeIterator& m_iter; //!< Поток к которому относится данная точка
+    CodePlace m_place; //!< Индекс к которому необходимо вернуться
 };
