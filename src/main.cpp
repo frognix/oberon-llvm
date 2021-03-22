@@ -1,15 +1,10 @@
 #include "module_loader.hpp"
-#include "plib/format.hpp"
+#include "libparser/format.hpp"
 #include <iostream>
 
 inline void writeHelp(std::ostream& stream) {
-    stream << "Usage: oberon INFILE [OUTFILE]" << std::endl << "With no OUTFILE write to standard output" <<
-    std::endl;
+    stream << "Usage: oberon INFILE [OUTFILE]" << std::endl << "With no OUTFILE write to standard output" << std::endl;
 }
-
-struct Ident {
-    std::vector<char> vec;
-};
 
 int main(int argc, char* argv[]) {
     std::string_view programName{argv[0]};
@@ -33,7 +28,8 @@ int main(int argc, char* argv[]) {
     if (res) {
         fmt::print("{}", res->to_string());
     }
-    if (!res) fmt::print(format_red("Exit with error\n"));
+    if (!res)
+        fmt::print(format_red("Exit with error\n"));
 
     return 0;
 }

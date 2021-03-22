@@ -1,6 +1,6 @@
 #pragma once
 
-#include "plib/result.hpp"
+#include "libparser/result.hpp"
 #include "symbol_token.hpp"
 
 namespace std {

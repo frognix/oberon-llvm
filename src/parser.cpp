@@ -1,7 +1,6 @@
 #include "parser.hpp"
 
-#include "plib/parser.hpp"
-#include "plib/parsers.hpp"
+#include "libparser/parsers.hpp"
 #include "section_nodes.hpp"
 
 using namespace nodes;
