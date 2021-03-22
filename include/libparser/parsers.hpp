@@ -103,29 +103,27 @@ class Sequence : public Parser<std::tuple<Types...>> {
 public:
     Sequence(ParserPtr<Types>... parsers) : m_parsers(parsers...) {}
     ParseResult<std::tuple<Types...>> parse(CodeIterator& stream) const noexcept override {
-        return std::apply([&stream](const ParserPtr<Types>&... parsers) { return parse_tuple(stream, parsers...); },
-                          m_parsers);
+        auto start_parse = [&stream](const auto&... parsers) { return parse_tuple(stream, parsers...); };
+        return std::apply(start_parse, m_parsers);
     }
 
 private:
-    template <class T>
-    static T parse_value(CodeIterator& stream, const ParserPtr<T>& parser) {
-        if (auto val = parser->parse(stream); val) {
-            return val.value();
-        } else {
-            throw std::runtime_error("TODO: ");
-        }
-    }
-    static ParseResult<std::tuple<Types...>> parse_tuple(CodeIterator& stream,
+    inline static ParseResult<std::tuple<Types...>> parse_tuple(CodeIterator& stream,
                                                          const ParserPtr<Types>&... parsers) noexcept {
-        try {
-            BreakPoint point(stream);
-            std::tuple<Types...> result{parse_value(stream, parsers)...};
-            point.close();
-            return result;
-        } catch (std::exception& e) {
-            return parse_error;
-        }
+        bool error = false;
+        BreakPoint point(stream);
+        auto func = [&stream] <class T> (bool& error, const ParserPtr<T>& parser) {
+            if (!error) {
+                if (auto val = parser->parse(stream); val)
+                    return val.value();
+                error = true;
+            }
+            return T{};
+        };
+        std::tuple<Types...> result{func(error, parsers)...};
+        if (error) return parse_error;
+        point.close();
+        return result;
     }
     std::tuple<ParserPtr<Types>...> m_parsers;
 };
@@ -137,31 +135,24 @@ inline ParserPtr<std::tuple<Types...>> sequence(ParserPtr<Types>... args) {
 
 template <class... Types>
 class Variant : public Parser<std::variant<Types...>> {
-  public:
+public:
     Variant(ParserPtr<Types>... parsers) : m_parsers(parsers...) {}
     ParseResult<std::variant<Types...>> parse(CodeIterator& stream) const noexcept override {
-        return std::apply([&stream](const ParserPtr<Types>&... parsers) { return parse_variant(stream, parsers...); },
-                          m_parsers);
+        auto start_parse = [&stream](const auto&... parsers) { return parse_variant(stream, parsers...); };
+        return std::apply(start_parse, m_parsers);
     }
 
-  private:
-    template <class T>
-    static void parse_value(CodeIterator& stream, const ParserPtr<T>& parser,
-                            std::variant<Types...>& result) {
-        if (auto res = parser->parse(stream)) {
-            result = res.value();
-            throw std::runtime_error("...");
-        }
-    }
-    static ParseResult<std::variant<Types...>> parse_variant(CodeIterator& stream,
-                                                             const ParserPtr<Types>&... parsers) noexcept {
-        std::variant<Types...> result;
-        try {
-            (parse_value(stream, parsers, result), ...);
-            return parse_error;
-        } catch (std::exception& e) {
-            return result;
-        }
+private:
+    inline static auto parse_variant(CodeIterator& stream, const ParserPtr<Types>&... parsers) noexcept {
+        auto func = [&stream](const auto& parser) {
+            BreakPoint point(stream);
+            auto res = parser->parse(stream);
+            if (res) point.close();
+            return res;
+        };
+        ParseResult<std::variant<Types...>> result;
+        ((result = func(parsers)) || ...);
+        return result;
     }
     std::tuple<ParserPtr<Types>...> m_parsers;
 };
@@ -388,35 +379,22 @@ class BaseEither : public Parser<std::shared_ptr<Base>> {
   public:
     BaseEither(ParserPtr<Types>... parsers) : m_parsers(parsers...) {}
     ParseResult<std::shared_ptr<Base>> parse(CodeIterator& stream) const noexcept override {
-        return std::apply([&stream](const ParserPtr<Types>&... parsers) { return parse_tuple(stream, parsers...); },
-                          m_parsers);
+        auto start_parse = [&stream](const ParserPtr<Types>&... parsers) { return parse_tuple(stream, parsers...); };
+        return std::apply(start_parse, m_parsers);
     }
 
   private:
-    template <class T>
-    static void parse_value(CodeIterator& stream, const ParserPtr<T>& parser,
-                            std::shared_ptr<Base>& result) {
-        if (stream.has_undroppable_error())
-            return;
-        BreakPoint point(stream);
-        if (auto res = parser->parse(stream); res) {
-            result = std::static_pointer_cast<Base>(std::make_shared<T>(res.value()));
+    inline static auto parse_tuple(CodeIterator& stream, const ParserPtr<Types>&... parsers) noexcept {
+        auto func = [&stream] <class T> (const ParserPtr<T>& parser) {
+            BreakPoint point(stream);
+            auto res = parser->parse(stream);
+            if (!res) return ParseResult<std::shared_ptr<Base>>{parse_error};
             point.close();
-            throw "Success";
-        } else {
-            if (stream.has_undroppable_error())
-                return;
-        }
-    }
-    static ParseResult<std::shared_ptr<Base>> parse_tuple(CodeIterator& stream,
-                                                          const ParserPtr<Types>&... parsers) noexcept {
-        std::shared_ptr<Base> result;
-        try {
-            (parse_value(stream, parsers, result), ...);
-            return parse_error;
-        } catch (const char*) {
-            return result;
-        }
+            return ParseResult{std::static_pointer_cast<Base>(std::make_shared<T>(res.value()))};
+        };
+        ParseResult<std::shared_ptr<Base>> result;
+        ((result = func(parsers)) || ...);
+        return result;
     }
     std::tuple<ParserPtr<Types>...> m_parsers;
 };
