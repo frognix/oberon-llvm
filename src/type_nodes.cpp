@@ -1,3 +1,4 @@
+#include "internal_error.hpp"
 #include "node_formatters.hpp"
 #include "nodes.hpp"
 #include "semantic_context.hpp"
@@ -146,7 +147,7 @@ const char* basetype_to_str(BaseType type) {
         case BaseType::BYTE: return "BYTE";
         case BaseType::SET: return "SET";
         case BaseType::NIL: return "NIL";
-        default: throw std::runtime_error("Internal error: Bad BaseType");
+        default: internal::compiler_error("Unexpected BaseType");
     }
 }
 
@@ -165,7 +166,7 @@ BaseType ident_to_basetype(Ident i) {
         return BaseType::SET;
     if (i.equal_to("NIL"))
         return BaseType::NIL;
-    throw std::runtime_error(fmt::format("Internal error: Bad BaseType ({})", i));
+    internal::compiler_error(fmt::format("Unexpected BaseType ident: '{}'", i));
 }
 
 bool BuiltInType::equal_to(BaseType other) const {
@@ -251,11 +252,11 @@ bool RecordType::extends(Context& context, const Type& type) const {
     if (same_types(context, *this, other)) return true;
     if (!basetype) return false;
     auto res = context.symbols.get_symbol(context.messages, *basetype);
-    if (!res) throw std::runtime_error("Internal error (RecordType::extends)");
+    if (!res) internal::compiler_error("Basetype symbol not found");
     if (same_types(context, *res->type, other)) return true;
     else {
         auto record = res->type->is<RecordType>();
-        if (!record) throw std::runtime_error("Internal error (RecordType::extends)");
+        if (!record) internal::compiler_error("Basetype is not record type");
         return record->extends(context, type);
     }
 }
@@ -286,13 +287,13 @@ const RecordType& PointerType::get_type(Context& context) const {
     Type* tmp_type;
     if (auto name = type->is<TypeName>()) {
         auto res = context.symbols.get_symbol(context.messages, name->ident);
-        if (!res) throw std::runtime_error("Internal error (PointerType::get_type)");
+        if (!res) internal::compiler_error("Symbol for typename in pointer not found");
         tmp_type = res->type.get();
     } else {
         tmp_type = type.get();
     }
     auto record = tmp_type->is<RecordType>();
-    if (!record) throw std::runtime_error("Internal error (PointerType::get_type)");
+    if (!record) internal::compiler_error("Pointer type is not record type");
     return *record;
 }
 

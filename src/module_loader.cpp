@@ -1,4 +1,5 @@
 #include "module_loader.hpp"
+#include "internal_error.hpp"
 #include "module_table.hpp"
 #include "section_nodes.hpp"
 #include "semantic_context.hpp"
@@ -14,7 +15,7 @@ std::unique_ptr<ModuleTableI> load_module(std::shared_ptr<nodes::IModule> module
         if (!defRes) return {};
         return std::unique_ptr<ModuleTableI>(defRes.release());
     }
-    throw std::runtime_error("Internal error");
+    internal::compiler_error("Unexpected parser result type");
 }
 
 ModuleTableI* ModuleLoader::load(IOManager& io, std::string module_name) {

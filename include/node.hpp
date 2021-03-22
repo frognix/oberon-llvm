@@ -3,8 +3,9 @@
 #include "parser_tools.hpp"
 #include "libparser/code_iterator.hpp"
 #include "semantic_context.hpp"
+#include "internal_error.hpp"
 
-class SemanticContext;
+struct SemanticContext;
 
 namespace nodes {
 

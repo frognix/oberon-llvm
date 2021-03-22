@@ -1,4 +1,5 @@
 #pragma once
+#include "internal_error.hpp"
 #include "semantic_context.hpp"
 #include "node.hpp"
 #include <unordered_map>
@@ -17,7 +18,7 @@ inline const char* group_to_str(SymbolGroup gr) {
         case SymbolGroup::VAR: return "VAR";
         case SymbolGroup::CONST: return "CONST";
         case SymbolGroup::MODULE: return "MODULE";
-        default: throw std::runtime_error("Bad Symbol group");
+        default: internal::compiler_error("Unexpected symbol group");
     }
 }
 

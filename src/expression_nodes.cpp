@@ -1,5 +1,6 @@
 #include "expression_nodes.hpp"
 
+#include "internal_error.hpp"
 #include "node_formatters.hpp"
 #include "symbol_table.hpp"
 #include "type.hpp"
@@ -337,7 +338,7 @@ OpType ident_to_optype(const Ident& i) {
     if (i.equal_to(">=")) return OpType::GTE;
     if (i.equal_to("IN")) return OpType::IN;
     if (i.equal_to("IS")) return OpType::IS;
-    throw std::runtime_error("Internal error");
+    internal::compiler_error(fmt::format("Unexpected operator: '{}'", i));
 }
 
 const char* optype_to_str(OpType type) {
@@ -358,7 +359,7 @@ const char* optype_to_str(OpType type) {
         case OpType::GTE: return ">=";
         case OpType::IN: return "IN";
         case OpType::IS: return "IS";
-        default: throw std::runtime_error("Internal error");
+        default: internal::compiler_error("Unexpected operator type");
     }
 }
 
@@ -501,7 +502,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Term::get_type(Context& context) const {
             return error;
         }
     } else {
-        throw std::runtime_error("Internal error: invalid term");
+        internal::compiler_error("Invalid term");
     }
 }
 

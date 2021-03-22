@@ -164,7 +164,7 @@ struct fmt::formatter<nodes::Selector> {
         } else if (auto sel = std::get_if<nodes::QualIdent>(&id); sel) {
             return fmt::format_to(ctx.out(), "({})", *sel);
         } else
-            throw std::runtime_error("Bad variant");
+            internal::compiler_error("Bad variant");
     }
 };
 

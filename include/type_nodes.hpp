@@ -1,6 +1,7 @@
 #pragma once
 
 #include "expression.hpp"
+#include "internal_error.hpp"
 #include "type.hpp"
 
 namespace nodes {
@@ -30,7 +31,7 @@ struct TypeName : Type {
     Maybe<TypePtr> dereference(Context& table) const;
     TypeName(QualIdent i) : ident(i) {
         if (!i.qual && is_base_type(i.ident))
-            throw std::runtime_error("Internal error: BaseType in TypeName");
+            internal::compiler_error("BaseType in TypeName");
     }
     QualIdent ident;
 };
@@ -40,7 +41,7 @@ struct ImportTypeName : Type {
     Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
     ImportTypeName(IdentDef i) : ident{{}, i.ident} {
         if (!ident.qual && is_base_type(ident.ident))
-            throw std::runtime_error("Internal error: BaseType in TypeName");
+            internal::compiler_error("BaseType in TypeName");
     }
     QualIdent ident;
 };
