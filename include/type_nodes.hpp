@@ -8,7 +8,7 @@ namespace nodes {
 
 struct BuiltInType : Type {
     std::string to_string() const override;
-    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
     bool equal_to(BaseType t) const;
     BuiltInType() : type() {}
     BuiltInType(Ident i);
@@ -27,7 +27,7 @@ inline bool is_base_type(Ident ident) {
 
 struct TypeName : Type {
     std::string to_string() const override;
-    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
     Maybe<TypePtr> dereference(Context& table) const;
     TypeName(QualIdent i) : ident(i) {
         if (!i.qual && is_base_type(i.ident))
@@ -38,7 +38,7 @@ struct TypeName : Type {
 
 struct ImportTypeName : Type {
     std::string to_string() const override;
-    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
     ImportTypeName(IdentDef i) : ident{{}, i.ident} {
         if (!ident.qual && is_base_type(ident.ident))
             internal::compiler_error("BaseType in TypeName");
@@ -50,7 +50,7 @@ using FieldListSequence = std::vector<FieldList>;
 
 struct RecordType : Type {
     std::string to_string() const override;
-    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
     Maybe<TypePtr> has_field(const Ident& ident, Context& table) const;
     bool extends(Context&, const Type&) const;
     RecordType(std::optional<QualIdent> b, FieldListSequence s) : basetype(b), seq(s) {}
@@ -62,21 +62,21 @@ struct PointerType : Type {
     std::string to_string() const override;
     bool check_type(Context& table);
     const RecordType& get_type(Context&) const;
-    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
     PointerType(TypePtr t) : type(t) {}
     TypePtr type;
 };
 
 struct ConstStringType : Type {
     std::string to_string() const override;
-    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
     ConstStringType(size_t s) : size(s) {}
     size_t size;
 };
 
 struct ArrayType : Type {
     std::string to_string() const override;
-    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
     Maybe<TypePtr> drop_dimensions(size_t, Context&) const;
     ArrayType(std::vector<ExpressionPtr> l, TypePtr t, bool u = false);
     ExpressionPtr length;
@@ -113,7 +113,7 @@ struct FormalParameters {
 
 struct ProcedureType : Type {
     std::string to_string() const override;
-    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
     ProcedureType() {}
     ProcedureType(std::optional<FormalParameters> par);
     FormalParameters params;

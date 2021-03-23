@@ -5,7 +5,7 @@
 namespace nodes {
 
 struct Type : Node {
-    virtual Maybe<TypePtr> normalize(Context&, bool normalize_pointers) = 0;
+    virtual Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const = 0;
     virtual ~Type() = default;
 };
 

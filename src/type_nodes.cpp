@@ -181,7 +181,7 @@ std::string BuiltInType::to_string() const {
     return fmt::format("@{}", basetype_to_str(type));
 }
 
-Maybe<TypePtr> BuiltInType::normalize(Context&, bool) {
+Maybe<TypePtr> BuiltInType::normalize(Context&, bool) const {
     return make_type<BuiltInType>(*this);
 }
 
@@ -199,7 +199,7 @@ Maybe<TypePtr> TypeName::dereference(Context& context) const {
         return symbol->type;
 }
 
-Maybe<TypePtr> TypeName::normalize(Context& context, bool normalize_pointers) {
+Maybe<TypePtr> TypeName::normalize(Context& context, bool normalize_pointers) const {
     auto symbol = context.symbols.get_symbol(context.messages, ident);
     if (!symbol)
         return error;
@@ -210,7 +210,7 @@ std::string ImportTypeName::to_string() const {
     return fmt::format("${}", ident);
 }
 
-Maybe<TypePtr> ImportTypeName::normalize(Context&, bool) {
+Maybe<TypePtr> ImportTypeName::normalize(Context&, bool) const {
     return make_type<ImportTypeName>(*this);
 }
 
@@ -261,7 +261,7 @@ bool RecordType::extends(Context& context, const Type& type) const {
     }
 }
 
-Maybe<TypePtr> RecordType::normalize(Context& context, bool normalize_pointers) {
+Maybe<TypePtr> RecordType::normalize(Context& context, bool normalize_pointers) const {
     RecordType copy = *this;
     for (auto& list : copy.seq) {
         auto res = list.type->normalize(context, normalize_pointers);
@@ -297,7 +297,7 @@ const RecordType& PointerType::get_type(Context& context) const {
     return *record;
 }
 
-Maybe<TypePtr> PointerType::normalize(Context& context, bool normalize_pointers) {
+Maybe<TypePtr> PointerType::normalize(Context& context, bool normalize_pointers) const {
     if (!normalize_pointers)
         return make_type<PointerType>(*this);
     PointerType copy = *this;
@@ -308,7 +308,7 @@ Maybe<TypePtr> PointerType::normalize(Context& context, bool normalize_pointers)
 
 std::string ConstStringType::to_string() const { return fmt::format("String[{}]", size); }
 
-Maybe<TypePtr> ConstStringType::normalize(Context&, bool) {
+Maybe<TypePtr> ConstStringType::normalize(Context&, bool) const {
     return make_type<ConstStringType>(*this);
 }
 
@@ -320,7 +320,7 @@ std::string ArrayType::to_string() const {
     }
 }
 
-Maybe<TypePtr> ArrayType::normalize(Context& context, bool normalize_pointers) {
+Maybe<TypePtr> ArrayType::normalize(Context& context, bool normalize_pointers) const {
     ArrayType copy = *this;
     auto res = copy.type->normalize(context, normalize_pointers);
     if (!res)
@@ -339,7 +339,7 @@ Maybe<TypePtr> ArrayType::normalize(Context& context, bool normalize_pointers) {
             context.messages.addErr(length->place, "Expected integer, found real");
             return error;
         }
-        length = *expr;
+        copy.length = *expr;
     }
     return make_type<ArrayType>(copy);
 }
@@ -382,7 +382,7 @@ std::string ProcedureType::to_string() const {
     return fmt::format("PROCEDURE {}", params);
 }
 
-Maybe<TypePtr> ProcedureType::normalize(Context& context, bool normalize_pointers) {
+Maybe<TypePtr> ProcedureType::normalize(Context& context, bool normalize_pointers) const {
     ProcedureType copy = *this;
     for (auto& section : copy.params.params) {
         auto res = section.type->normalize(context, normalize_pointers);
