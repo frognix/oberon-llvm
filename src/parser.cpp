@@ -1,5 +1,7 @@
 #include "parser.hpp"
 
+#include "libparser/code_iterator.hpp"
+#include "libparser/parser.hpp"
 #include "libparser/parsers.hpp"
 #include "section_nodes.hpp"
 
@@ -57,79 +59,70 @@ ParserPtr<char> any_func() {
     return predicate("any symbol", [](auto) { return true; });
 }
 
-template <class T, class P>
-ParserPtr<T> change(ParserPtr<P> parser, T ch) {
-    return extension(parser, [ch](const auto&) { return ch; });
-}
+struct Nothing {};
 
-template <class T, class E>
-class Limiters : public Parser<std::vector<T>> {
-  public:
-    Limiters(ParserPtr<E> begin, ParserPtr<T> parser, ParserPtr<E> end)
-        : m_begin(begin), m_parser(parser), m_end(end) {}
-    ParseResult<std::vector<T>> parse(CodeIterator& stream) const noexcept override {
-        std::vector<T> result;
+class Delim : public Parser<Nothing> {
+public:
+    Delim() {}
+    bool parse_comment(CodeIterator& stream) const noexcept {
         BreakPoint point(stream);
-        if (auto bres = m_begin->parse(stream); bres) {
+        if (auto res = stream.get(2); res && res.value() == "(*") {
+            std::optional<char> symbol;
             while (true) {
-                if (auto eres = m_end->parse(stream); eres) {
-                    point.close();
-                    return result;
-                } else if (auto pres = m_parser->parse(stream); pres) {
-                    result.push_back(pres.value());
-                } else {
-                    if (stream.has_undroppable_error())
-                        return parse_error;
-                    return parse_error;
+                symbol = stream.peek();
+                if (!symbol) return false;
+                if (symbol.value() == '(') {
+                    parse_comment(stream);
+                } else if (symbol.value() == '*') {
+                    BreakPoint com_point(stream);
+                    auto symbols = stream.get(2);
+                    if (!symbols) return false;
+                    if (symbols.value() == "*)") {
+                        com_point.close();
+                        point.close();
+                        return true;
+                    }
                 }
+                stream.drop();
             }
         }
-        return parse_error;
+        return false;
     }
-
-  private:
-    ParserPtr<E> m_begin;
-    ParserPtr<T> m_parser;
-    ParserPtr<E> m_end;
+    ParseResult<Nothing> parse(CodeIterator& stream) const noexcept override {
+        while (true) {
+            if (auto symbol = stream.peek(); symbol && std::isspace(symbol.value())) {
+                stream.drop();
+            } else if (auto comm_result = parse_comment(stream); comm_result) {
+                continue;
+            } else {
+                return Nothing{};
+            }
+        }
+    }
 };
 
-template <class T, class E>
-inline ParserPtr<std::vector<T>> limiters(ParserPtr<E> begin, ParserPtr<T> parser, ParserPtr<E> end) {
-    return make_parser(Limiters(begin, parser, end));
-}
-
-ParserPtr<char> comment() {
-    ParserLinker<std::vector<char>> comm;
-
-    auto lcomm = comm.link(limiters(symbols("(*"), either({any_func(), change(comm.get(), '0')}), symbols("*)")));
-
-    return change(lcomm, '0');
-}
-
-ParserPtr<std::vector<char>> delim() {
-    return many(either({symbol(' '), symbol('\r'), symbol('\n'), symbol('\t'), comment()}));
-}
+auto delim = make_parser(Delim());
 
 template <class T, class D>
 ParserPtr<std::vector<T>> extra_delim(ParserPtr<T> parser, ParserPtr<D> extra) {
-    return chain(parser, many(parse_index<3>::select(delim(), extra, delim(), parser)));
+    return chain(parser, many(parse_index<3>::select(delim, extra, delim, parser)));
 }
 
 template <class T, class D>
 ParserPtr<std::vector<T>> extra_delim0(ParserPtr<T> parser, ParserPtr<D> extra) {
-    return many(parse_index<1>::select(delim(), parser, delim(), extra));
+    return many(parse_index<1>::select(delim, parser, delim, extra));
 }
 
 template <class... Types>
 ParserPtr<std::tuple<Types...>> syntax_sequence(ParserPtr<Types>... parsers) {
-    return delim_sequence(delim(), parsers...);
+    return delim_sequence(delim, parsers...);
 }
 
 template <size_t... Is>
 struct syntax_index {
     template <class... Types>
     static auto select(ParserPtr<Types>... parsers) {
-        return delim_index<Is...>::select(delim(), parsers...);
+        return delim_index<Is...>::select(delim, parsers...);
     }
 };
 
@@ -216,12 +209,17 @@ const std::vector<Ident> keywords = []() {
     return result;
 }();
 
+inline bool is_letter_or_digit(char c) {
+    return  (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || isdigit(c);
+}
+
 ParserPtr<char> any = any_func();
 ParserPtr<char> letter =
     predicate("letter", [](auto c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); });
 ParserPtr<char> digit = predicate("digit", isdigit);
 ParserPtr<char> hexdigit = predicate("hexdigit", isxdigit);
-ParserPtr<Ident> identifier = set_place(construct<Ident>(chain(letter, many(either({letter, digit})))));
+ParserPtr<char> letter_or_digit = predicate("latter or digit", is_letter_or_digit);
+ParserPtr<Ident> identifier = set_place(construct<Ident>(chain(letter, many(letter_or_digit))));
 ParserPtr<Ident> ident = not_from(identifier, keywords);
 
 ParserPtr<Ident> keyword(std::string_view key) {

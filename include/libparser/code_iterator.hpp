@@ -57,14 +57,14 @@ public:
         return val;
     }
 
-    std::optional<std::string> get(size_t size) noexcept {
+    std::optional<std::string_view> get(size_t size) noexcept {
         if (m_index + size > m_data.size())
             return {};
 
         auto val = m_data.substr(m_index, size);
         m_index += size;
 
-        return std::string(val);
+        return val;
     }
 
     std::optional<char> peek() const noexcept {
@@ -73,20 +73,17 @@ public:
         return m_data[m_index];
     }
 
+    void drop() {
+        if (m_index < m_data.size())
+            m_index++;
+    }
+
     void error_expected(std::string expected) {
         m_error.expected = expected;
         if (m_error.type == NONE) {
             m_error.index = m_index;
         }
     }
-
-    // void drop_error() {
-    //     if (m_error.type == UNDROPPABLE)
-    //         throw std::runtime_error("Internal error: attempt to drop undroppable error");
-    //     fmt::print("drop: {} :: {}\n", m_error.expected, m_data[m_index]);
-    //     m_error.type = NONE;
-    //     m_error.expected.clear();
-    // }
 
     void set_undroppable_error() {
         m_error.type = UNDROPPABLE;
