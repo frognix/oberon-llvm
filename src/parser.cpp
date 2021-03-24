@@ -374,7 +374,7 @@ auto expression_parser() {
 
     ParserPtr<Tilda> tilda = construct<Tilda>(syntax_index<1>::select(symbol('~'), factorLink.get()));
 
-    auto preFactor = either({node_either<Expression>(charConst, constInteger, constReal, string, nil, boolean, set, procCall, tilda),
+    auto preFactor = either({node_either<Expression>(charConst, constReal, constInteger, string, nil, boolean, set, procCall, tilda),
                      syntax_index<1>::select(symbol('('), expression, symbol(')'))});
     auto factor = factorLink.link(preFactor);
 
