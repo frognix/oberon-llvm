@@ -1,5 +1,6 @@
 #include "parser.hpp"
 
+#include "expression_nodes.hpp"
 #include "libparser/code_iterator.hpp"
 #include "libparser/parser.hpp"
 #include "libparser/parsers.hpp"
@@ -274,7 +275,7 @@ auto type_parser(ParserPtr<ExpressionPtr> expression) {
             auto [array, ident] = data;
             auto typeName = is_base_type(ident.ident) ? make_type<BuiltInType>(ident.ident) : make_type<TypeName>(ident);
             if (array.size() > 0) {
-                std::vector<ExpressionPtr> vec(array.size(), make_expression<Number>(Integer(1)));
+                std::vector<ExpressionPtr> vec(array.size(), make_expression<ConstInteger>(1));
                 return make_type<ArrayType>(vec, typeName, true);
             } else return typeName;
         });
@@ -333,13 +334,15 @@ auto expression_parser() {
     ParserPtr<Integer> integer =
         construct<Integer>(either({parse_index<0>::select(hexnumber, symbol('H')), decnumber}));
 
+    auto constInteger = construct<ConstInteger>(integer);
+
     auto scale_parser = sequence(either({symbol('E'), symbol('D')}), either({symbol('+'), symbol('-')}), decnumber);
 
     auto real_parser = parse_index<0, 2, 3>::select(decnumber, symbol('.'), decnumber, maybe(scale_parser));
 
     ParserPtr<Real> real = extension(real_parser, &parse_real);
 
-    ParserPtr<Number> number = construct<Number>(variant(real, integer));
+    auto constReal = construct<ConstReal>(real);
 
     ParserPtr<Char> charConst =
         construct<Char>(either({parse_index<1>::select(symbol('\''), any, symbol('\'')),
@@ -371,7 +374,7 @@ auto expression_parser() {
 
     ParserPtr<Tilda> tilda = construct<Tilda>(syntax_index<1>::select(symbol('~'), factorLink.get()));
 
-    auto preFactor = either({node_either<Expression>(charConst, number, string, nil, boolean, set, procCall, tilda),
+    auto preFactor = either({node_either<Expression>(charConst, constInteger, constReal, string, nil, boolean, set, procCall, tilda),
                      syntax_index<1>::select(symbol('('), expression, symbol(')'))});
     auto factor = factorLink.link(preFactor);
 

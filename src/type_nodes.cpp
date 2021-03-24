@@ -1,6 +1,7 @@
 #include "internal_error.hpp"
 #include "node_formatters.hpp"
 #include "nodes.hpp"
+#include "parser_tools.hpp"
 #include "semantic_context.hpp"
 #include "symbol_table.hpp"
 #include "type_nodes.hpp"
@@ -70,7 +71,7 @@ bool nodes::assignment_compatible_types(Context& context, const Type& var, const
             if (varray->open_array) return false;
             auto atype = varray->type->is<BuiltInType>();
             if (!atype || !atype->equal_to(BaseType::CHAR)) return false;
-            auto n = std::get<1>(varray->length->is<Number>()->value);
+            auto n = varray->length->is<ConstInteger>()->value;
             auto m = estring->size;
             return static_cast<int>(m) < n;
         }
@@ -330,13 +331,9 @@ Maybe<TypePtr> ArrayType::normalize(Context& context, bool normalize_pointers) c
         auto expr = length->eval(context);
         if (!expr)
             return error;
-        auto integer = dynamic_cast<Number*>(expr->get());
+        auto integer = dynamic_cast<ConstInteger*>(expr->get());
         if (!integer) {
-            context.messages.addErr(length->place, "Expected number, found {}", length->to_string());
-            return error;
-        }
-        if (!std::holds_alternative<Integer>(integer->value)) {
-            context.messages.addErr(length->place, "Expected integer, found real");
+            context.messages.addErr(length->place, "Expected integer, found {}", length->to_string());
             return error;
         }
         copy.length = *expr;

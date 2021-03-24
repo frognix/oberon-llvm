@@ -1,6 +1,7 @@
 #pragma once
 
 #include "expression.hpp"
+#include "parser_tools.hpp"
 #include "statement.hpp"
 #include "type_nodes.hpp"
 #include <variant>
@@ -9,12 +10,28 @@ struct SymbolToken;
 
 namespace nodes {
 
-struct Number : Expression {
+// struct Number : Expression {
+//     std::string to_string() const override;
+//     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
+//     Maybe<ExpressionPtr> eval(Context&) const override;
+//     Number(std::variant<Real, Integer> v) : value(v) {}
+//     std::variant<Real, Integer> value;
+// };
+
+struct ConstInteger : Expression {
     std::string to_string() const override;
-    Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
+    Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
     Maybe<ExpressionPtr> eval(Context&) const override;
-    Number(std::variant<Real, Integer> v) : value(v) {}
-    std::variant<Real, Integer> value;
+    ConstInteger(Integer i) : value(i) {}
+    Integer value;
+};
+
+struct ConstReal : Expression {
+    std::string to_string() const override;
+    Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
+    Maybe<ExpressionPtr> eval(Context&) const override;
+    ConstReal(Real d) : value(d) {}
+    Real value;
 };
 
 struct Char : Expression {

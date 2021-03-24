@@ -8,21 +8,31 @@
 
 using namespace nodes;
 
-std::string Number::to_string() const {
-    return std::visit([](auto&& arg) { return fmt::format("{}", arg); }, value);
+std::string ConstInteger::to_string() const {
+    return fmt::format("{}", value);
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> Number::get_type(Context&) const {
-    if (std::holds_alternative<Real>(value)) {
-        return std::pair(SymbolGroup::CONST, make_base_type(BaseType::REAL));
-    } else {
-        return std::pair(SymbolGroup::CONST, make_base_type(BaseType::INTEGER));
-    }
+Maybe<std::pair<SymbolGroup, TypePtr>> ConstInteger::get_type(Context&) const {
+    return std::pair(SymbolGroup::CONST, make_base_type(BaseType::INTEGER));
 }
 
-Maybe<ExpressionPtr> Number::eval(Context&) const {
-    return make_expression<Number>(*this);
+Maybe<ExpressionPtr> ConstInteger::eval(Context&) const {
+    return make_expression<ConstInteger>(*this);
 }
+
+std::string ConstReal::to_string() const {
+    return fmt::format("{}", value);
+}
+
+Maybe<std::pair<SymbolGroup, TypePtr>> ConstReal::get_type(Context&) const {
+    return std::pair(SymbolGroup::CONST, make_base_type(BaseType::REAL));
+}
+
+Maybe<ExpressionPtr> ConstReal::eval(Context&) const {
+    return make_expression<ConstReal>(*this);
+}
+
+
 
 std::string Char::to_string() const {
     if (value < ' ' || value > '~')
@@ -510,7 +520,7 @@ Maybe<ExpressionPtr> Term::eval(Context& context) const {
     if (!sign && !oper && !second) {
         return first->eval(context);
     } else {
-        return make_expression<Number>(Integer(10));
+        return make_expression<ConstInteger>(10);
     }
 }
 
