@@ -12,7 +12,7 @@ namespace nodes {
 
 struct Expression : Node {
     virtual Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const = 0;
-    virtual Maybe<ExpressionPtr> eval(Context&) const = 0;
+    virtual Maybe<ExpressionPtr> eval_constant(Context&) const = 0;
     virtual ~Expression() = default;
 };
 

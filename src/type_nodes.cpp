@@ -328,7 +328,7 @@ Maybe<TypePtr> ArrayType::normalize(Context& context, bool normalize_pointers) c
         return res;
     copy.type = *res;
     if (!open_array) {
-        auto expr = length->eval(context);
+        auto expr = length->eval_constant(context);
         if (!expr)
             return error;
         auto integer = dynamic_cast<ConstInteger*>(expr->get());

@@ -10,18 +10,10 @@ struct SymbolToken;
 
 namespace nodes {
 
-// struct Number : Expression {
-//     std::string to_string() const override;
-//     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
-//     Maybe<ExpressionPtr> eval(Context&) const override;
-//     Number(std::variant<Real, Integer> v) : value(v) {}
-//     std::variant<Real, Integer> value;
-// };
-
 struct ConstInteger : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     ConstInteger(Integer i) : value(i) {}
     Integer value;
 };
@@ -29,7 +21,7 @@ struct ConstInteger : Expression {
 struct ConstReal : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     ConstReal(Real d) : value(d) {}
     Real value;
 };
@@ -37,7 +29,7 @@ struct ConstReal : Expression {
 struct Char : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     Char(char c) : value(c) {}
     char value;
 };
@@ -45,7 +37,7 @@ struct Char : Expression {
 struct String : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     String(std::vector<char> v) : value(v) {}
     std::vector<char> value;
 };
@@ -53,14 +45,14 @@ struct String : Expression {
 struct Nil : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     Nil() {}
 };
 
 struct Boolean : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     Boolean(bool v) : value(v) {}
     bool value;
 };
@@ -73,7 +65,7 @@ struct SetElement {
 struct Set : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     Set(std::optional<std::vector<SetElement>> v);
     std::vector<SetElement> value;
 };
@@ -91,7 +83,7 @@ struct ProcCall : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_info(Context& table) const;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     ProcCall(DesignatorRepairer i, std::optional<ExpList> e) : data(i, e) {}
     ProcCallDataRepairer data;
 };
@@ -99,7 +91,7 @@ struct ProcCall : Expression {
 struct Tilda : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     Tilda(ExpressionPtr ptr) : expression(ptr) {}
     ExpressionPtr expression;
 };
@@ -107,7 +99,7 @@ struct Tilda : Expression {
 struct Term : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
-    Maybe<ExpressionPtr> eval(Context&) const override;
+    Maybe<ExpressionPtr> eval_constant(Context&) const override;
     Term() {}
     Term(std::optional<char> s, ExpressionPtr f, std::optional<std::tuple<Operator, ExpressionPtr>> sec);
     Term(ExpressionPtr f, std::optional<std::tuple<Operator, ExpressionPtr>> sec);

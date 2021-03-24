@@ -16,7 +16,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ConstInteger::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::INTEGER));
 }
 
-Maybe<ExpressionPtr> ConstInteger::eval(Context&) const {
+Maybe<ExpressionPtr> ConstInteger::eval_constant(Context&) const {
     return make_expression<ConstInteger>(*this);
 }
 
@@ -28,7 +28,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ConstReal::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::REAL));
 }
 
-Maybe<ExpressionPtr> ConstReal::eval(Context&) const {
+Maybe<ExpressionPtr> ConstReal::eval_constant(Context&) const {
     return make_expression<ConstReal>(*this);
 }
 
@@ -45,7 +45,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Char::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::CHAR));
 }
 
-Maybe<ExpressionPtr> Char::eval(Context&) const {
+Maybe<ExpressionPtr> Char::eval_constant(Context&) const {
     return make_expression<Char>(*this);
 }
 
@@ -57,7 +57,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> String::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_type<ConstStringType>(value.size()));
 }
 
-Maybe<ExpressionPtr> String::eval(Context&) const {
+Maybe<ExpressionPtr> String::eval_constant(Context&) const {
     return make_expression<String>(*this);
 }
 
@@ -69,7 +69,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Nil::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::NIL));
 }
 
-Maybe<ExpressionPtr> Nil::eval(Context&) const {
+Maybe<ExpressionPtr> Nil::eval_constant(Context&) const {
     return make_expression<Nil>(*this);
 }
 
@@ -81,7 +81,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Boolean::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::BOOL));
 }
 
-Maybe<ExpressionPtr> Boolean::eval(Context&) const {
+Maybe<ExpressionPtr> Boolean::eval_constant(Context&) const {
     return make_expression<Boolean>(*this);
 }
 
@@ -93,7 +93,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Set::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::SET));
 }
 
-Maybe<ExpressionPtr> Set::eval(Context&) const {
+Maybe<ExpressionPtr> Set::eval_constant(Context&) const {
     return make_expression<Set>(*this);
 }
 
@@ -290,7 +290,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_type(Context& context) cons
     }
 }
 
-Maybe<ExpressionPtr> ProcCall::eval(Context& context) const {
+Maybe<ExpressionPtr> ProcCall::eval_constant(Context& context) const {
     if (!data.repair(context))
         return error;
     auto ident = data.get().ident.get();
@@ -319,8 +319,8 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Tilda::get_type(Context& context) const {
     }
 }
 
-Maybe<ExpressionPtr> Tilda::eval(Context& context) const {
-    auto res = expression->eval(context);
+Maybe<ExpressionPtr> Tilda::eval_constant(Context& context) const {
+    auto res = expression->eval_constant(context);
     if (!res)
         return error;
     auto boolean = dynamic_cast<Boolean*>(res->get());
@@ -516,9 +516,9 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Term::get_type(Context& context) const {
     }
 }
 
-Maybe<ExpressionPtr> Term::eval(Context& context) const {
+Maybe<ExpressionPtr> Term::eval_constant(Context& context) const {
     if (!sign && !oper && !second) {
-        return first->eval(context);
+        return first->eval_constant(context);
     } else {
         return make_expression<ConstInteger>(10);
     }
