@@ -3,7 +3,8 @@
 #include "node_formatters.hpp"
 
 #include "semantic_context.hpp"
-#include "symbol_table.hpp"
+#include "symbol_table_i.hpp"
+#include "single_symbol_table.hpp"
 #include "type.hpp"
 
 using namespace nodes;
@@ -125,8 +126,27 @@ std::string ForStatement::to_string() const {
         return fmt::format("FOR {} := {} TO {} DO\n{}\nEND", ident, for_expr, to_expr, block);
 }
 
-bool ForStatement::check(Context&) const {
-    return bsuccess;
+bool ForStatement::check(Context& context) const {
+    if (by_expr) {
+        auto value = by_expr->get(context);
+        if (!value) return berror;
+        if (!value.value()->is<ConstInteger>()) {
+            context.messages.addErr(value.value()->place, "Expected integer");
+            return berror;
+        }
+    }
+    auto symbol_res = context.symbols.get_symbol(context.messages, QualIdent{{}, ident});
+    if (!symbol_res) return berror;
+    if (auto type = symbol_res->type->is<BuiltInType>(); type && type->equal_to(BaseType::INTEGER)) {
+        bool error = false;
+        for (auto statement : block) {
+            if (!statement->check(context)) error = true;
+        }
+        return !error;
+    } else {
+        context.messages.addErr(ident.place, "Expected variable of INTEGER type");
+        return berror;
+    }
 }
 
 std::string CallStatement::to_string() const {
