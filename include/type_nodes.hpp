@@ -1,5 +1,6 @@
 #pragma once
 
+#include "const_value.hpp"
 #include "expression.hpp"
 #include "internal_error.hpp"
 #include "type.hpp"
@@ -79,7 +80,7 @@ struct ArrayType : Type {
     Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
     Maybe<TypePtr> drop_dimensions(size_t, Context&) const;
     ArrayType(std::vector<ExpressionPtr> l, TypePtr t, bool u = false);
-    ExpressionPtr length;
+    ConstValue length;
     TypePtr type;
     bool open_array;
 };

@@ -71,7 +71,9 @@ bool nodes::assignment_compatible_types(Context& context, const Type& var, const
             if (varray->open_array) return false;
             auto atype = varray->type->is<BuiltInType>();
             if (!atype || !atype->equal_to(BaseType::CHAR)) return false;
-            auto n = varray->length->is<ConstInteger>()->value;
+            auto res = varray->length.get(context);
+            if (!res) internal::compiler_error(__FUNCTION__);
+            auto n = res.value()->is<ConstInteger>()->value;
             auto m = estring->size;
             return static_cast<int>(m) < n;
         }
@@ -328,15 +330,14 @@ Maybe<TypePtr> ArrayType::normalize(Context& context, bool normalize_pointers) c
         return res;
     copy.type = *res;
     if (!open_array) {
-        auto expr = length->eval_constant(context);
+        auto expr = copy.length.get(context);
         if (!expr)
             return error;
         auto integer = dynamic_cast<ConstInteger*>(expr->get());
         if (!integer) {
-            context.messages.addErr(length->place, "Expected integer, found {}", length->to_string());
+            context.messages.addErr(expr.value()->place, "Expected integer");
             return error;
         }
-        copy.length = *expr;
     }
     return make_type<ArrayType>(copy);
 }

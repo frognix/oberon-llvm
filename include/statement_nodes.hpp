@@ -2,6 +2,8 @@
 
 #include "expression_nodes.hpp"
 #include "statement.hpp"
+#include "const_value.hpp"
+#include <optional>
 
 namespace nodes {
 
@@ -60,11 +62,11 @@ struct ForStatement : Statement {
     std::string to_string() const override;
     bool check(Context&) const override;
     ForStatement(Ident i, ExpressionPtr f, ExpressionPtr to, std::optional<ExpressionPtr> by, StatementSequence b)
-        : ident(i), for_expr(f), to_expr(to), by_expr(by), block(b) {}
+        : ident(i), for_expr(f), to_expr(to), by_expr(by ? by : std::nullopt), block(b) {}
     Ident ident;
     ExpressionPtr for_expr;
     ExpressionPtr to_expr;
-    std::optional<ExpressionPtr> by_expr;
+    std::optional<ConstValue> by_expr;
     StatementSequence block;
 };
 

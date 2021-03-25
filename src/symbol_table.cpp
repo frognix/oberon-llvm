@@ -5,7 +5,7 @@
 bool SymbolTable::parse(SymbolTable& table, nodes::Context& context, const nodes::DeclarationSequence& seq, nodes::StatementSequence body, std::function<bool(nodes::IdentDef,nodes::Context&)> func)  {
     table.body = body;
     for (auto& decl : seq.constDecls) {
-        auto res = decl.expression->eval_constant(context);
+        auto res = decl.expression.get(context);
         if (!res) return berror;
         auto expr = *res;
         if (auto exprRes = expr->get_type(context); exprRes) {

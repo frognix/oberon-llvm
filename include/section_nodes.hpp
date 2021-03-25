@@ -4,12 +4,13 @@
 #include "section.hpp"
 #include "type_nodes.hpp"
 #include "statement.hpp"
+#include "const_value.hpp"
 
 namespace nodes {
 
 struct ConstDecl {
     IdentDef ident;
-    ExpressionPtr expression;
+    ConstValue expression;
 };
 
 struct TypeDecl {
