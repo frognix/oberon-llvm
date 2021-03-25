@@ -5,6 +5,7 @@
 #include "statement.hpp"
 #include "type_nodes.hpp"
 #include <variant>
+#include <set>
 
 struct SymbolToken;
 
@@ -57,12 +58,20 @@ struct Boolean : Value {
     bool value;
 };
 
+struct ConstSet : Value {
+    std::string to_string() const override;
+    Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
+    Maybe<ValuePtr> eval_constant(Context&) const override;
+    ConstSet(std::set<Integer> s) : values(s) {};
+    std::set<Integer> values;
+};
+
 struct SetElement {
     ExpressionPtr first;
     std::optional<ExpressionPtr> second;
 };
 
-struct Set : Value {
+struct Set : Expression {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;

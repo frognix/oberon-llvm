@@ -83,6 +83,18 @@ Maybe<ValuePtr> Boolean::eval_constant(Context&) const {
     return make_value<Boolean>(*this);
 }
 
+std::string ConstSet::to_string() const {
+    return fmt::format("{{{}}}", fmt::join(values, ", "));
+}
+
+Maybe<std::pair<SymbolGroup, TypePtr>> ConstSet::get_type(Context&) const {
+    return std::pair(SymbolGroup::CONST, make_base_type(BaseType::SET));
+}
+
+Maybe<ValuePtr> ConstSet::eval_constant(Context&) const {
+    return make_value<ConstSet>(*this);
+}
+
 std::string Set::to_string() const {
     return fmt::format("{{{}}}", fmt::join(value, ", "));
 }
@@ -91,8 +103,33 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Set::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::SET));
 }
 
-Maybe<ValuePtr> Set::eval_constant(Context&) const {
-    return make_value<Set>(*this);
+inline Maybe<ConstInteger> check_value(Context& context, const Expression& expr) {
+    auto value_res = expr.eval_constant(context);
+    if (!value_res) return error;
+    auto value_int = value_res.value()->is<ConstInteger>();
+    if (!value_int) {
+        context.messages.addErr(expr.place, "Exprected integer value");
+        return error;
+    }
+    return *value_int;
+}
+
+Maybe<ValuePtr> Set::eval_constant(Context& context) const {
+    std::set<Integer> set;
+    for (auto elem : value) {
+        auto first_int = check_value(context, *elem.first);
+        if (!first_int) return error;
+        if (elem.second) {
+            auto second_int = check_value(context, *elem.second.value());
+            if (!second_int) return error;
+            for (Integer i = first_int->value; i <= second_int->value; ++i) {
+                set.insert(i);
+            }
+        } else {
+            set.insert(first_int->value);
+        }
+    }
+    return make_value<ConstSet>(set);
 }
 
 Set::Set(std::optional<std::vector<SetElement>> v) {
