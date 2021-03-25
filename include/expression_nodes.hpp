@@ -15,6 +15,7 @@ struct ConstInteger : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
+    Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
     ConstInteger(Integer i) : value(i) {}
     Integer value;
 };
@@ -23,6 +24,7 @@ struct ConstReal : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
+    Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
     ConstReal(Real d) : value(d) {}
     Real value;
 };
@@ -31,6 +33,7 @@ struct Char : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
+    Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
     Char(char c) : value(c) {}
     char value;
 };
@@ -39,6 +42,7 @@ struct String : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
+    Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
     String(std::vector<char> v) : value(v) {}
     std::vector<char> value;
 };
@@ -47,6 +51,7 @@ struct Nil : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
+    Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
     Nil() {}
 };
 
@@ -54,6 +59,7 @@ struct Boolean : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
+    Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
     Boolean(bool v) : value(v) {}
     bool value;
 };
@@ -62,6 +68,7 @@ struct ConstSet : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
+    Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
     ConstSet(std::set<Integer> s) : values(s) {};
     std::set<Integer> values;
 };

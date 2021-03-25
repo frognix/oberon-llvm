@@ -20,6 +20,52 @@ Maybe<ValuePtr> ConstInteger::eval_constant(Context&) const {
     return make_value<ConstInteger>(*this);
 }
 
+Maybe<ValuePtr> incompatible_types(Context& context, OpType oper, const Value& left, const Value& right) {
+    auto left_res = left.get_type(context);
+    auto right_res = right.get_type(context);
+    if (!left_res || !right_res) return error;
+    auto [left_group, left_type] = left_res.value();
+    auto [right_group, right_type] = right_res.value();
+    context.messages.addErr(left.place, "Incompatible types for operator '{}' : {} and {}", optype_to_str(oper), left_type->to_string(), right_type->to_string());
+    return error;
+}
+
+bool compare_values(OpType oper, auto left, auto right) {
+    bool result;
+    switch (oper) {
+        case OP_EQ:   result = left == right; break;
+        case OP_NEQ:  result = left != right; break;
+        case OP_LT:   result = left <  right; break;
+        case OP_LTE:  result = left <= right; break;
+        case OP_GT:   result = left >  right; break;
+        case OP_GTE:  result = left >= right; break;
+        default: internal::compiler_error(__FUNCTION__);
+    }
+    return result;
+}
+
+Maybe<ValuePtr> ConstInteger::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto pinteger = other.is<ConstInteger>(); pinteger) {
+        if (OP_COMPARE & oper)
+            return make_value<Boolean>(compare_values(oper, value, pinteger->value));
+        Integer result;
+        switch (oper) {
+            case OP_ADD:  result = value +  pinteger->value; break;
+            case OP_SUB:  result = value -  pinteger->value; break;
+            case OP_MUL:  result = value *  pinteger->value; break;
+            case OP_IDIV: result = value /  pinteger->value; break;
+            case OP_MOD:  result = value %  pinteger->value; break;
+            default: return incompatible_types(context, oper, *this, other);
+        }
+        return make_value<ConstInteger>(result);
+    } else if (auto pset = other.is<ConstSet>(); pset) {
+        if (oper != OP_IN) return incompatible_types(context, oper, *this, other);
+        return make_value<Boolean>(pset->values.contains(value));
+    } else {
+        return incompatible_types(context, oper, *this, other);
+    }
+}
+
 std::string ConstReal::to_string() const {
     return fmt::format("{}", value);
 }
@@ -30,6 +76,24 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ConstReal::get_type(Context&) const {
 
 Maybe<ValuePtr> ConstReal::eval_constant(Context&) const {
     return make_value<ConstReal>(*this);
+}
+
+Maybe<ValuePtr> ConstReal::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto preal = other.is<ConstReal>(); preal) {
+        if (OP_COMPARE & oper)
+            return make_value<Boolean>(compare_values(oper, value, preal->value));
+        Real result;
+        switch (oper) {
+            case OP_ADD:  result = value + preal->value; break;
+            case OP_SUB:  result = value - preal->value; break;
+            case OP_MUL:  result = value * preal->value; break;
+            case OP_RDIV: result = value / preal->value; break;
+            default: return incompatible_types(context, oper, *this, other);
+        }
+        return make_value<ConstReal>(result);
+    } else {
+        return incompatible_types(context, oper, *this, other);
+    }
 }
 
 std::string Char::to_string() const {
@@ -47,6 +111,17 @@ Maybe<ValuePtr> Char::eval_constant(Context&) const {
     return make_value<Char>(*this);
 }
 
+Maybe<ValuePtr> Char::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (!(OP_COMPARE & oper)) return incompatible_types(context, oper, *this, other);
+    if (auto pchar = other.is<Char>(); pchar) {
+        return make_value<Boolean>(compare_values(oper, value, pchar->value));
+    } else if (auto pstring = other.is<String>(); pstring && pstring->value.size() == 1) {
+        return make_value<Boolean>(compare_values(oper, value, pstring->value[0]));
+    } else {
+        return incompatible_types(context, oper, *this, other);
+    }
+}
+
 std::string String::to_string() const {
     return fmt::format("\"{}\"", fmt::join(value, ""));
 }
@@ -57,6 +132,17 @@ Maybe<std::pair<SymbolGroup, TypePtr>> String::get_type(Context&) const {
 
 Maybe<ValuePtr> String::eval_constant(Context&) const {
     return make_value<String>(*this);
+}
+
+Maybe<ValuePtr> String::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (!(OP_COMPARE & oper)) return incompatible_types(context, oper, *this, other);
+    if (auto pchar = other.is<Char>(); pchar && value.size() == 1) {
+        return make_value<Boolean>(compare_values(oper, value[0], pchar->value));
+    } else if (auto pstring = other.is<String>(); pstring) {
+        return make_value<Boolean>(compare_values(oper, value, pstring->value));
+    } else {
+        return incompatible_types(context, oper, *this, other);
+    }
 }
 
 std::string Nil::to_string() const {
@@ -71,6 +157,20 @@ Maybe<ValuePtr> Nil::eval_constant(Context&) const {
     return make_value<Nil>(*this);
 }
 
+Maybe<ValuePtr> Nil::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto pnil = other.is<Nil>(); pnil) {
+        bool result;
+        switch (oper) {
+            case OP_EQ:  result = true;  break;
+            case OP_NEQ: result = false; break;
+            default: return incompatible_types(context, oper, *this, other);
+        }
+        return make_value<Boolean>(result);
+    } else {
+        return incompatible_types(context, oper, *this, other);
+    }
+}
+
 std::string Boolean::to_string() const {
     return fmt::format("{}", value);
 }
@@ -83,6 +183,22 @@ Maybe<ValuePtr> Boolean::eval_constant(Context&) const {
     return make_value<Boolean>(*this);
 }
 
+Maybe<ValuePtr> Boolean::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto pbool = other.is<Boolean>(); pbool) {
+        bool result;
+        switch (oper) {
+            case OP_OR:  result = value || pbool->value; break;
+            case OP_AND: result = value && pbool->value; break;
+            case OP_EQ:  result = value == pbool->value; break;
+            case OP_NEQ: result = value != pbool->value; break;
+            default: return incompatible_types(context, oper, *this, other);
+        }
+        return make_value<Boolean>(result);
+    } else {
+        return incompatible_types(context, oper, *this, other);
+    }
+}
+
 std::string ConstSet::to_string() const {
     return fmt::format("{{{}}}", fmt::join(values, ", "));
 }
@@ -93,6 +209,44 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ConstSet::get_type(Context&) const {
 
 Maybe<ValuePtr> ConstSet::eval_constant(Context&) const {
     return make_value<ConstSet>(*this);
+}
+
+Maybe<ValuePtr> ConstSet::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto pset = other.is<ConstSet>(); pset) {
+        if (OP_COMPARE & oper) {
+            bool result;
+            switch (oper) {
+                case OP_EQ: result = values == pset->values; break;
+                case OP_NEQ: result = values != pset->values; break;
+                default: return incompatible_types(context, oper, *this, other);
+            }
+            return make_value<Boolean>(result);
+        } else {
+             std::set<Integer> result;
+             switch (oper) {
+                 case OP_ADD:  std::set_union(values.begin(), values.end(),
+                                              pset->values.begin(), pset->values.end(),
+                                              std::inserter(result, result.begin()));
+                 break;
+                 case OP_SUB:  std::set_difference(values.begin(), values.end(),
+                                                   pset->values.begin(), pset->values.end(),
+                                                   std::inserter(result, result.begin()));
+                 break;
+                 case OP_MUL:  std::set_intersection(values.begin(), values.end(),
+                                                     pset->values.begin(), pset->values.end(),
+                                                     std::inserter(result, result.begin()));
+                 break;
+                 case OP_RDIV: std::set_symmetric_difference(values.begin(), values.end(),
+                                                             pset->values.begin(), pset->values.end(),
+                                                             std::inserter(result, result.begin()));
+                 break;
+                 default: return incompatible_types(context, oper, *this, other);
+             }
+             return make_value<ConstSet>(result);
+        }
+    } else {
+        return incompatible_types(context, oper, *this, other);
+    }
 }
 
 std::string Set::to_string() const {
@@ -367,43 +521,43 @@ Maybe<ValuePtr> Tilda::eval_constant(Context& context) const {
 }
 
 OpType ident_to_optype(const Ident& i) {
-    if (i.equal_to("+")) return OpType::ADD;
-    if (i.equal_to("-")) return OpType::SUB;
-    if (i.equal_to("*")) return OpType::MUL;
-    if (i.equal_to("/")) return OpType::RDIV;
-    if (i.equal_to("DIV")) return OpType::IDIV;
-    if (i.equal_to("MOD")) return OpType::MOD;
-    if (i.equal_to("OR")) return OpType::OR;
-    if (i.equal_to("&")) return OpType::AND;
-    if (i.equal_to("=")) return OpType::EQ;
-    if (i.equal_to("#")) return OpType::NEQ;
-    if (i.equal_to("<")) return OpType::LT;
-    if (i.equal_to("<=")) return OpType::LTE;
-    if (i.equal_to(">")) return OpType::GT;
-    if (i.equal_to(">=")) return OpType::GTE;
-    if (i.equal_to("IN")) return OpType::IN;
-    if (i.equal_to("IS")) return OpType::IS;
+    if (i.equal_to("+")) return OP_ADD;
+    if (i.equal_to("-")) return OP_SUB;
+    if (i.equal_to("*")) return OP_MUL;
+    if (i.equal_to("/")) return OP_RDIV;
+    if (i.equal_to("DIV")) return OP_IDIV;
+    if (i.equal_to("MOD")) return OP_MOD;
+    if (i.equal_to("OR")) return OP_OR;
+    if (i.equal_to("&")) return OP_AND;
+    if (i.equal_to("=")) return OP_EQ;
+    if (i.equal_to("#")) return OP_NEQ;
+    if (i.equal_to("<")) return OP_LT;
+    if (i.equal_to("<=")) return OP_LTE;
+    if (i.equal_to(">")) return OP_GT;
+    if (i.equal_to(">=")) return OP_GTE;
+    if (i.equal_to("IN")) return OP_IN;
+    if (i.equal_to("IS")) return OP_IS;
     internal::compiler_error(fmt::format("Unexpected operator: '{}'", i));
 }
 
-const char* optype_to_str(OpType type) {
+const char* nodes::optype_to_str(OpType type) {
     switch (type) {
-        case OpType::ADD: return "+";
-        case OpType::SUB: return "-";
-        case OpType::MUL: return "*";
-        case OpType::RDIV: return "/";
-        case OpType::IDIV: return "DIV";
-        case OpType::MOD: return "MOD";
-        case OpType::OR: return "OR";
-        case OpType::AND: return "&";
-        case OpType::EQ: return "=";
-        case OpType::NEQ: return "#";
-        case OpType::LT: return "<";
-        case OpType::LTE: return "<=";
-        case OpType::GT: return ">";
-        case OpType::GTE: return ">=";
-        case OpType::IN: return "IN";
-        case OpType::IS: return "IS";
+        case OP_ADD: return "+";
+        case OP_SUB: return "-";
+        case OP_MUL: return "*";
+        case OP_RDIV: return "/";
+        case OP_IDIV: return "DIV";
+        case OP_MOD: return "MOD";
+        case OP_OR: return "OR";
+        case OP_AND: return "&";
+        case OP_EQ: return "=";
+        case OP_NEQ: return "#";
+        case OP_LT: return "<";
+        case OP_LTE: return "<=";
+        case OP_GT: return ">";
+        case OP_GTE: return ">=";
+        case OP_IN: return "IN";
+        case OP_IS: return "IS";
         default: internal::compiler_error("Unexpected operator type");
     }
 }
@@ -431,29 +585,29 @@ struct OpTableLine {
 };
 
 const std::vector<OpTableLine> optable {
-    {{OpType::ADD, OpType::SUB, OpType::MUL}, {
+    {{OP_ADD, OP_SUB, OP_MUL}, {
             OpTableSubLine{{BaseType::INTEGER, BaseType::BYTE}, {BaseType::INTEGER, BaseType::BYTE}, BaseType::INTEGER},
             OpTableSubLine{{BaseType::REAL}, {BaseType::REAL}, BaseType::REAL}
         }},
-    {{OpType::ADD, OpType::SUB, OpType::MUL, OpType::RDIV}, {
+    {{OP_ADD, OP_SUB, OP_MUL, OP_RDIV}, {
             OpTableSubLine{{BaseType::SET}, {BaseType::SET}, BaseType::SET}
         }},
-    {{OpType::IDIV, OpType::MOD}, {
+    {{OP_IDIV, OP_MOD}, {
             OpTableSubLine{{BaseType::INTEGER, BaseType::BYTE}, {BaseType::INTEGER, BaseType::BYTE}, BaseType::INTEGER}
         }},
-    {{OpType::OR, OpType::AND}, {
+    {{OP_OR, OP_AND}, {
             OpTableSubLine{{BaseType::BOOL}, {BaseType::BOOL}, BaseType::BOOL}
         }},
-    {{OpType::EQ, OpType::NEQ, OpType::LT, OpType::LTE, OpType::GT, OpType::GTE}, {
+    {{OP_EQ, OP_NEQ, OP_LT, OP_LTE, OP_GT, OP_GTE}, {
             OpTableSubLine{{BaseType::CHAR}, {BaseType::CHAR}, BaseType::BOOL},
             OpTableSubLine{{BaseType::INTEGER, BaseType::BYTE}, {BaseType::INTEGER, BaseType::BYTE}, BaseType::BOOL},
             OpTableSubLine{{BaseType::REAL}, {BaseType::REAL}, BaseType::BOOL}
         }},
-    {{OpType::EQ, OpType::NEQ}, {
+    {{OP_EQ, OP_NEQ}, {
             OpTableSubLine{{BaseType::BOOL}, {BaseType::BOOL}, BaseType::BOOL},
             OpTableSubLine{{BaseType::SET}, {BaseType::SET}, BaseType::BOOL}
         }},
-    {{OpType::IN}, {
+    {{OP_IN}, {
             OpTableSubLine{{BaseType::INTEGER, BaseType::BYTE}, {BaseType::SET}, BaseType::BOOL}
         }}
 };
@@ -492,12 +646,12 @@ Maybe<BaseType> nodes::expression_compatible(Context& context, CodePlace place, 
             }
         }
     }
-    if (oper == OpType::EQ || oper == OpType::NEQ || oper == OpType::LT || oper == OpType::LTE || oper == OpType::GT || oper == OpType::GTE) {
+    if (oper == OP_EQ || oper == OP_NEQ || oper == OP_LT || oper == OP_LTE || oper == OP_GT || oper == OP_GTE) {
         if ((same_types(context, left, BuiltInType(BaseType::CHAR)) || same_types(context, left, ConstStringType(1)))
             && (same_types(context, right, BuiltInType(BaseType::CHAR)) || same_types(context, right, ConstStringType(1))))
             return BaseType::BOOL;
     }
-    if (oper == OpType::EQ || oper == OpType::NEQ) {
+    if (oper == OP_EQ || oper == OP_NEQ) {
         if ((same_types(context, left, BuiltInType(BaseType::NIL)) || left.is<PointerType>())
             && (same_types(context, right, BuiltInType(BaseType::NIL)) || right.is<PointerType>()))
             return BaseType::BOOL;
@@ -505,7 +659,7 @@ Maybe<BaseType> nodes::expression_compatible(Context& context, CodePlace place, 
             && (same_types(context, right, BuiltInType(BaseType::NIL)) || right.is<ProcedureType>()))
         return BaseType::BOOL;
     }
-    if (oper == OpType::IS) {
+    if (oper == OP_IS) {
         if (auto rrecord = right.is<RecordType>(); rrecord) {
             auto lrecord = left.is<RecordType>();
             if (lrecord && rrecord->extends(context, *rrecord)) return BaseType::BOOL;
@@ -555,7 +709,11 @@ Maybe<ValuePtr> Term::eval_constant(Context& context) const {
     if (!sign && !oper && !second) {
         return first->eval_constant(context);
     } else {
-        return make_value<ConstInteger>(10);
+        auto firstRes = first->eval_constant(context);
+        if (!firstRes) return error;
+        auto secondRes = second.value()->eval_constant(context);
+        if (!secondRes) return error;
+        return firstRes.value()->apply_operator(context, oper->value, *secondRes.value());
     }
 }
 
