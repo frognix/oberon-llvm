@@ -12,13 +12,17 @@ namespace nodes {
 
 struct Expression : Node {
     virtual Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const = 0;
-    virtual Maybe<ExpressionPtr> eval_constant(Context&) const = 0;
+    virtual Maybe<ValuePtr> eval_constant(Context&) const = 0;
     virtual ~Expression() = default;
 };
 
 enum class OpType {
     ADD, SUB, MUL, RDIV, IDIV, MOD, OR,
     AND, EQ, NEQ, LT, LTE, GT, GTE, IN, IS
+};
+
+struct Value : Expression {
+    // virtual Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const = 0;
 };
 
 struct Operator {
@@ -33,6 +37,11 @@ Maybe<BaseType> expression_compatible(Context& context, CodePlace place, const T
 template <class Subtype, class... Args>
 ExpressionPtr make_expression(Args... args) {
     return make_optr<Expression, Subtype>(args...);
+}
+
+template <class Subtype, class... Args>
+ValuePtr make_value(Args... args) {
+    return make_optr<Value, Subtype>(args...);
 }
 
 using ExpList = std::vector<ExpressionPtr>;

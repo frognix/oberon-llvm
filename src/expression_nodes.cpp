@@ -16,8 +16,8 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ConstInteger::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::INTEGER));
 }
 
-Maybe<ExpressionPtr> ConstInteger::eval_constant(Context&) const {
-    return make_expression<ConstInteger>(*this);
+Maybe<ValuePtr> ConstInteger::eval_constant(Context&) const {
+    return make_value<ConstInteger>(*this);
 }
 
 std::string ConstReal::to_string() const {
@@ -28,11 +28,9 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ConstReal::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::REAL));
 }
 
-Maybe<ExpressionPtr> ConstReal::eval_constant(Context&) const {
-    return make_expression<ConstReal>(*this);
+Maybe<ValuePtr> ConstReal::eval_constant(Context&) const {
+    return make_value<ConstReal>(*this);
 }
-
-
 
 std::string Char::to_string() const {
     if (value < ' ' || value > '~')
@@ -45,8 +43,8 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Char::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::CHAR));
 }
 
-Maybe<ExpressionPtr> Char::eval_constant(Context&) const {
-    return make_expression<Char>(*this);
+Maybe<ValuePtr> Char::eval_constant(Context&) const {
+    return make_value<Char>(*this);
 }
 
 std::string String::to_string() const {
@@ -57,8 +55,8 @@ Maybe<std::pair<SymbolGroup, TypePtr>> String::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_type<ConstStringType>(value.size()));
 }
 
-Maybe<ExpressionPtr> String::eval_constant(Context&) const {
-    return make_expression<String>(*this);
+Maybe<ValuePtr> String::eval_constant(Context&) const {
+    return make_value<String>(*this);
 }
 
 std::string Nil::to_string() const {
@@ -69,8 +67,8 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Nil::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::NIL));
 }
 
-Maybe<ExpressionPtr> Nil::eval_constant(Context&) const {
-    return make_expression<Nil>(*this);
+Maybe<ValuePtr> Nil::eval_constant(Context&) const {
+    return make_value<Nil>(*this);
 }
 
 std::string Boolean::to_string() const {
@@ -81,8 +79,8 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Boolean::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::BOOL));
 }
 
-Maybe<ExpressionPtr> Boolean::eval_constant(Context&) const {
-    return make_expression<Boolean>(*this);
+Maybe<ValuePtr> Boolean::eval_constant(Context&) const {
+    return make_value<Boolean>(*this);
 }
 
 std::string Set::to_string() const {
@@ -93,8 +91,8 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Set::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::SET));
 }
 
-Maybe<ExpressionPtr> Set::eval_constant(Context&) const {
-    return make_expression<Set>(*this);
+Maybe<ValuePtr> Set::eval_constant(Context&) const {
+    return make_value<Set>(*this);
 }
 
 Set::Set(std::optional<std::vector<SetElement>> v) {
@@ -290,7 +288,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_type(Context& context) cons
     }
 }
 
-Maybe<ExpressionPtr> ProcCall::eval_constant(Context& context) const {
+Maybe<ValuePtr> ProcCall::eval_constant(Context& context) const {
     if (!data.repair(context))
         return error;
     auto ident = data.get().ident.get();
@@ -319,7 +317,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Tilda::get_type(Context& context) const {
     }
 }
 
-Maybe<ExpressionPtr> Tilda::eval_constant(Context& context) const {
+Maybe<ValuePtr> Tilda::eval_constant(Context& context) const {
     auto res = expression->eval_constant(context);
     if (!res)
         return error;
@@ -328,7 +326,7 @@ Maybe<ExpressionPtr> Tilda::eval_constant(Context& context) const {
         context.messages.addErr(place, "Expected boolean");
         return error;
     }
-    return make_expression<Boolean>(!boolean->value);
+    return make_value<Boolean>(!boolean->value);
 }
 
 OpType ident_to_optype(const Ident& i) {
@@ -516,11 +514,11 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Term::get_type(Context& context) const {
     }
 }
 
-Maybe<ExpressionPtr> Term::eval_constant(Context& context) const {
+Maybe<ValuePtr> Term::eval_constant(Context& context) const {
     if (!sign && !oper && !second) {
         return first->eval_constant(context);
     } else {
-        return make_expression<ConstInteger>(10);
+        return make_value<ConstInteger>(10);
     }
 }
 

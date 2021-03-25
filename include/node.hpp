@@ -68,6 +68,9 @@ struct IdentDef {
 struct Expression;
 using ExpressionPtr = OPtr<Expression>;
 
+struct Value;
+using ValuePtr = OPtr<Value>;
+
 struct Type;
 using TypePtr = OPtr<Type>;
 

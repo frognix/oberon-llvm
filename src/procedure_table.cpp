@@ -35,7 +35,7 @@ Maybe<SymbolToken> ProcedureTable::get_symbol(MessageContainer& messages, const 
     }
 }
 
-Maybe<nodes::ExpressionPtr> ProcedureTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<nodes::ValuePtr> ProcedureTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (ident.qual) {
         return m_parent->get_value(messages, ident, secretly);
     } else {

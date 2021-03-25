@@ -21,9 +21,9 @@ public:
 
     //SymbolTableI
     Maybe<SymbolToken> get_symbol(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const;
-    Maybe<nodes::ExpressionPtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const;
+    Maybe<nodes::ValuePtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const;
     bool add_symbol(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type);
-    bool add_value(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ExpressionPtr value);
+    bool add_value(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ValuePtr value);
     bool add_table(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table);
 
     //CodeSectionI
@@ -35,7 +35,7 @@ public:
 protected:
 private:
     SymbolMap<SymbolToken> symbols;
-    SymbolMap<nodes::ExpressionPtr> values;
+    SymbolMap<nodes::ValuePtr> values;
     SymbolMap<TablePtr> tables;
     nodes::StatementSequence body;
 };

@@ -1,4 +1,5 @@
 #include "symbol_table.hpp"
+#include "node.hpp"
 #include "procedure_table.hpp"
 
 bool SymbolTable::parse(SymbolTable& table, nodes::Context& context, const nodes::DeclarationSequence& seq, nodes::StatementSequence body, std::function<bool(nodes::IdentDef,nodes::Context&)> func)  {
@@ -99,7 +100,7 @@ bool SymbolTable::add_symbol(MessageContainer& messages, nodes::IdentDef ident, 
 }
 
 bool SymbolTable::add_value(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type,
-                             nodes::ExpressionPtr value) {
+                             nodes::ValuePtr value) {
     if (auto res = add_symbol(messages, ident, group, type); !res) {
         return berror;
     } else {
@@ -134,7 +135,7 @@ Maybe<SymbolToken> SymbolTable::get_symbol(MessageContainer& messages, const nod
     }
 }
 
-Maybe<nodes::ExpressionPtr> SymbolTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<nodes::ValuePtr> SymbolTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
     if (ident.qual) {
         messages.addMessage(msg);
@@ -143,7 +144,7 @@ Maybe<nodes::ExpressionPtr> SymbolTable::get_value(MessageContainer& messages, c
         if (auto res = values.find(ident.ident); res != values.end()) {
             if (!secretly)
                 const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
-            return nodes::ExpressionPtr(res->second);
+            return nodes::ValuePtr(res->second);
         } else {
             messages.addMessage(msg);
             return error;

@@ -87,7 +87,7 @@ Maybe<SymbolToken> ModuleTable::get_symbol(MessageContainer& messages, const nod
     }
 }
 
-Maybe<nodes::ExpressionPtr> ModuleTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<nodes::ValuePtr> ModuleTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (!ident.qual) {
         return symbols.get_value(messages, ident, secretly);
     } else {

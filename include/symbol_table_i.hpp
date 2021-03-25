@@ -1,6 +1,7 @@
 #pragma once
 
 #include "libparser/result.hpp"
+#include "node.hpp"
 #include "symbol_token.hpp"
 
 namespace std {
@@ -30,7 +31,7 @@ public:
     virtual ~SymbolTableI() {}
 
     virtual Maybe<SymbolToken> get_symbol(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
-    virtual Maybe<nodes::ExpressionPtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
+    virtual Maybe<nodes::ValuePtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
 
     virtual std::string to_string() const = 0;
 };
