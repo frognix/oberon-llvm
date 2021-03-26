@@ -288,16 +288,18 @@ inline ParserPtr<char> predicate(std::string name, Func func) {
     return make_parser(Predicate(name, func));
 }
 
-template <size_t... Is>
+template <size_t Idx, size_t... Is>
 struct Select {
+    template <class... Types>
+    using result_type = tuple_select_type<std::tuple<Types...>, Idx, Is...>;
+
     template <template <typename...> class BaseType, class... Types>
-    class ParserSelect : public Parser<typename selector<Is...>::template type<Types...>> {
+    class ParserSelect : public Parser<result_type<Types...>> {
       public:
-        using result = typename selector<Is...>::template type<Types...>;
         ParserSelect(ParserPtr<Types>... parsers) : m_parser(parsers...) {}
-        ParseResult<result> parse(CodeIterator& stream) const noexcept override {
+        ParseResult<result_type<Types...>> parse(CodeIterator& stream) const noexcept override {
             if (auto res = m_parser.parse(stream); res) {
-                return selector<Is...>::select(res.value());
+                return tuple_select<Idx, Is...>(res.value());
             } else
                 return parse_error;
         }
@@ -306,13 +308,12 @@ struct Select {
         BaseType<Types...> m_parser;
     };
     template <class... Types>
-    class TupleSelect : public Parser<typename selector<Is...>::template type<Types...>> {
+    class TupleSelect : public Parser<result_type<Types...>> {
       public:
-        using result = typename selector<Is...>::template type<Types...>;
         TupleSelect(ParserPtr<std::tuple<Types...>> parser) : m_parser(parser) {}
-        ParseResult<result> parse(CodeIterator& stream) const noexcept override {
+        ParseResult<result_type<Types...>> parse(CodeIterator& stream) const noexcept override {
             if (auto res = m_parser->parse(stream); res) {
-                return selector<Is...>::select(res.value());
+                return tuple_select<Idx, Is...>(res.value());
             } else
                 return parse_error;
         }

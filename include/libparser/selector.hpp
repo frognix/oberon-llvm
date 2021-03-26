@@ -1,54 +1,39 @@
 #pragma once
 
 #include <tuple>
+#include <type_traits>
 
-template <size_t Cur, size_t Idx, size_t... Is>
-struct sel {
-    template <class Type, class... Types>
-    requires(Cur != Idx) constexpr auto ecter() {
-        return sel<Cur + 1, Idx, Is...>().template ecter<Types...>();
-    }
-    template <class Type, class... Types>
-    requires(Cur == Idx) constexpr auto ecter() {
-        if constexpr (sizeof...(Is) == 0) {
-            return std::tuple<Type>();
-        } else {
-            return std::tuple_cat(std::tuple<Type>(), sel<Cur + 1, Is...>().template ecter<Types...>());
-        }
-    }
-    template <class Type, class... Types>
-    constexpr auto check() {
-        auto res = ecter<Type, Types...>();
-        if constexpr (sizeof...(Is) == 0) {
-            return std::get<0>(res);
-        } else
-            return res;
-    }
-    template <class... Types>
-    using type = decltype(sel<Cur, Idx, Is...>().template check<Types...>());
+template <typename> struct is_tuple: std::false_type {};
+template <typename ...T> struct is_tuple<std::tuple<T...>> : std::true_type {};
 
-    template <class... Types>
-    static constexpr auto select(std::tuple<Types...> args) {
-        auto res = std::apply([](auto... args) { return sel<Cur, Idx, Is...>()._select(args...); }, args);
-        if constexpr (sizeof...(Is) == 0) {
-            return std::get<0>(res);
-        } else
-            return res;
-    }
+//Концепт проверяющий то что тип является специализацией
+//шаблона std::tuple
+template <class T>
+concept isTuple = is_tuple<std::remove_cvref_t<T>>::value;
 
-    template <class Type, class... Types>
-    requires(Cur != Idx) constexpr auto _select([[gnu::unused]] Type arg, Types... args) {
-        return sel<Cur + 1, Idx, Is...>()._select(args...);
-    }
-    template <class Type, class... Types>
-    requires(Cur == Idx) constexpr auto _select(Type arg, Types... args) {
-        if constexpr (sizeof...(Is) == 0) {
-            return std::tuple(arg);
-        } else {
-            return std::tuple_cat(std::tuple(arg), sel<Cur + 1, Is...>()._select(args...));
-        }
-    }
-};
+//Вспомогательные алиасы для определения типа кортежа
+template <isTuple Type, size_t... Is>
+using select_many = std::tuple<std::tuple_element_t<Is, Type>...>;
 
-template <size_t... Is>
-using selector = sel<0, Is...>;
+template <isTuple Type, size_t Idx>
+using select_one = std::tuple_element_t<Idx, Type>;
+
+//Определение типа кортежа выбранного из кортежа Type
+template <isTuple Type, size_t Idx, size_t... Is>
+using tuple_select_type = std::conditional_t<sizeof...(Is) == 0, select_one<Type, Idx>, select_many<Type, Idx, Is...>>;
+
+//Функция для создания кортежа из другого кортежа по индексам
+//Пример
+//
+//std::tuple<float, std::string, int> tuple(42, "Hello", 3.14);
+//
+//std::tuple<float, int> parted_tuple = tuple_select<0,2>(tuple);
+//
+template <size_t... Is, isTuple Type>
+inline constexpr auto tuple_select(Type&& tuple) noexcept {
+    if constexpr (sizeof...(Is) == 1) {
+        return std::get<Is...>(std::forward<Type>(tuple));
+    } else {
+        return std::tuple(std::get<Is>(std::forward<Type>(tuple))...);
+    }
+}
