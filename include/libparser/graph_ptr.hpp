@@ -1,10 +1,10 @@
 #pragma once
 
 #include <cstddef>
-#include <fmt/format.h>
 #include <stdexcept>
 #include <unordered_set>
 #include <utility>
+#include "format.hpp"
 
 template <class T>
 class GraphLinker;

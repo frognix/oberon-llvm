@@ -1,6 +1,7 @@
 #pragma once
 
 #include "code_iterator.hpp"
+#include <vector>
 
 class CodeStream {
 public:

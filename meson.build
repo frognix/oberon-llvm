@@ -1,4 +1,4 @@
-project('thesis-test', 'cpp')
+project('oberon-llvm', 'cpp')
 
 opt = ['cpp_std=c++2a', 'warning_level=3']
 
@@ -7,6 +7,7 @@ opt = ['cpp_std=c++2a', 'warning_level=3']
 incdir = include_directories('include')
 
 src = [
+  './src/format.cc', #fmtlib : https://github.com/fmtlib/fmt
   './src/main.cpp',
   './src/parser.cpp',
   './src/expression_nodes.cpp',
@@ -22,10 +23,10 @@ src = [
   './src/message_container.cpp'
 ]
 
-fmt_dep = dependency('fmt')
+# fmt_dep = dependency('fmt')
 
-executable('thesis-test',
+executable('oberon-llvm',
            sources: src,
            include_directories: incdir,
-           dependencies : [fmt_dep],
+           # dependencies : [fmt_dep],
            override_options : opt)

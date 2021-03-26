@@ -2,6 +2,7 @@
 
 #include "symbol_table_i.hpp"
 #include "nodes.hpp"
+#include <functional>
 
 class ProcedureTable;
 

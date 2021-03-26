@@ -45,8 +45,9 @@ ParserPtr<T> equal_to(ParserPtr<T> parser, T value) {
 Real parse_real(const std::tuple<size_t, size_t, std::optional<std::tuple<char, char, size_t>>>& res) {
     auto [ipart, rpart, scale_val] = res;
     Real real_part = rpart;
-    while (real_part > 0)
+    while (real_part > 1) {
         real_part /= 10;
+    }
     Real real = ipart + real_part;
     if (scale_val) {
         auto [l, sign, scale_power] = *scale_val;

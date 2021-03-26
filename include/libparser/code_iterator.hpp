@@ -1,7 +1,6 @@
 #pragma once
 
-#include <fmt/format.h>
-#include <fmt/ranges.h>
+#include "format.hpp"
 #include <fstream>
 #include <limits>
 #include <optional>
