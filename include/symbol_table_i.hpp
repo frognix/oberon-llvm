@@ -1,6 +1,5 @@
 #pragma once
 
-#include "libparser/result.hpp"
 #include "node.hpp"
 #include "symbol_token.hpp"
 
