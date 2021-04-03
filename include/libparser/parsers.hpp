@@ -238,17 +238,15 @@ inline ParserPtr<std::optional<T>> maybe(ParserPtr<T> p) {
     return make_parser(MaybeParser(p));
 }
 
-class Symbols : public Parser<std::vector<char>> {
+class Symbols : public Parser<std::string_view> {
   public:
-    Symbols(std::string string) : m_string(string) {}
+    Symbols(const char* string) : m_string(string) {}
     PResult parse(CodeIterator& stream) const noexcept override {
         BreakPoint point(stream);
         if (auto res = stream.get(m_string.size()); res) {
             if (res.value() == m_string) {
                 point.close();
-                std::vector<char> result;
-                result.insert(result.end(), res->begin(), res->end());
-                return result;
+                return res.value();
             }
         }
         stream.error_expected(fmt::format("{}", m_string));
@@ -256,10 +254,10 @@ class Symbols : public Parser<std::vector<char>> {
     }
 
   private:
-    std::string m_string;
+    std::string_view m_string;
 };
 
-inline ParserPtr<std::vector<char>> symbols(std::string str) {
+inline ParserPtr<std::string_view> symbols(const char* str) {
     return make_parser(Symbols(str));
 }
 

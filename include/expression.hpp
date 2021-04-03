@@ -54,7 +54,7 @@ struct Value : Expression {
 struct Operator {
     Operator() {}
     Operator(Ident v);
-    Operator(char v);
+    Operator(std::string_view);
     OpType value;
 };
 

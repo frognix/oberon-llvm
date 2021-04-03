@@ -1,10 +1,13 @@
 #include "expression_nodes.hpp"
 
+#include "expression.hpp"
 #include "internal_error.hpp"
 #include "node_formatters.hpp"
 #include "symbol_table.hpp"
 #include "type.hpp"
 #include "type_nodes.hpp"
+#include <string>
+#include <string_view>
 
 using namespace nodes;
 
@@ -520,23 +523,23 @@ Maybe<ValuePtr> Tilda::eval_constant(Context& context) const {
     return make_value<Boolean>(!boolean->value);
 }
 
-OpType ident_to_optype(const Ident& i) {
-    if (i.equal_to("+")) return OP_ADD;
-    if (i.equal_to("-")) return OP_SUB;
-    if (i.equal_to("*")) return OP_MUL;
-    if (i.equal_to("/")) return OP_RDIV;
-    if (i.equal_to("DIV")) return OP_IDIV;
-    if (i.equal_to("MOD")) return OP_MOD;
-    if (i.equal_to("OR")) return OP_OR;
-    if (i.equal_to("&")) return OP_AND;
-    if (i.equal_to("=")) return OP_EQ;
-    if (i.equal_to("#")) return OP_NEQ;
-    if (i.equal_to("<")) return OP_LT;
-    if (i.equal_to("<=")) return OP_LTE;
-    if (i.equal_to(">")) return OP_GT;
-    if (i.equal_to(">=")) return OP_GTE;
-    if (i.equal_to("IN")) return OP_IN;
-    if (i.equal_to("IS")) return OP_IS;
+OpType ident_to_optype(std::string_view i) {
+    if (i == "+") return OP_ADD;
+    if (i == "-") return OP_SUB;
+    if (i == "*") return OP_MUL;
+    if (i == "/") return OP_RDIV;
+    if (i == "DIV") return OP_IDIV;
+    if (i == "MOD") return OP_MOD;
+    if (i == "OR") return OP_OR;
+    if (i == "&") return OP_AND;
+    if (i == "=") return OP_EQ;
+    if (i == "#") return OP_NEQ;
+    if (i == "<") return OP_LT;
+    if (i == "<=") return OP_LTE;
+    if (i == ">") return OP_GT;
+    if (i == ">=") return OP_GTE;
+    if (i == "IN") return OP_IN;
+    if (i == "IS") return OP_IS;
     internal::compiler_error(fmt::format("Unexpected operator: '{}'", i));
 }
 
@@ -562,8 +565,8 @@ const char* nodes::optype_to_str(OpType type) {
     }
 }
 
-Operator::Operator(Ident v) : value(ident_to_optype(v)) {}
-Operator::Operator(char v) : value(ident_to_optype(Ident({v}))) {}
+Operator::Operator(Ident v) : value(ident_to_optype({v.value.data(), v.value.size()})) {}
+Operator::Operator(std::string_view v) : value(ident_to_optype(v)) {}
 
 inline bool same_or(Context& context, const Type& expr, const Type& type1, const Type& type2) {
     return same_types(context, expr, type1) || same_types(context, expr, type2);

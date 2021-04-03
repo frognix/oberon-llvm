@@ -5,6 +5,7 @@
 #include "libparser/parser.hpp"
 #include "libparser/parsers.hpp"
 #include "section_nodes.hpp"
+#include <string_view>
 
 using namespace nodes;
 
@@ -245,9 +246,9 @@ auto type_parser(ParserPtr<ExpressionPtr> expression) {
     ParserPtr<IdentList> identList = extra_delim(identdef, symbol(','));
     ParserPtr<FieldList> fieldList = construct<FieldList>(syntax_index<0, 2>::select(identList, symbol(':'), type));
 
-    ParserPtr<BuiltInType> builtInType = construct<BuiltInType>(either({symbols("BOOLEAN"), symbols("CHAR"),
-                symbols("INTEGER"), symbols("REAL"),
-                symbols("BYTE"), symbols("SET")}));
+    ParserPtr<BuiltInType> builtInType = construct<BuiltInType>(either({keyword("BOOLEAN"), keyword("CHAR"),
+                keyword("INTEGER"), keyword("REAL"),
+                keyword("BYTE"), keyword("SET")}));
 
     ParserPtr<TypePtr> typeName = node_either<Type>(builtInType, construct<TypeName>(qualident));
 
@@ -380,14 +381,14 @@ auto expression_parser() {
     auto factor = factorLink.link(preFactor);
 
     ParserPtr<Operator> mulOperator = either({construct<Operator>(either({keyword("DIV"), keyword("MOD")})),
-                                              construct<Operator>(either({symbol('*'), symbol('/'), symbol('&')}))});
+                                              construct<Operator>(either({symbols("*"), symbols("/"), symbols("&")}))});
 
     ParserLinker<ExpressionPtr> termLink;
     auto preTerm = node_either<Expression>(construct<Term>(syntax_sequence(factor, maybe(syntax_sequence(mulOperator, termLink.get())))));
     auto term = termLink.link(preTerm);
 
     ParserPtr<Operator> addOperator =
-        either({construct<Operator>(keyword("OR")), construct<Operator>(either({symbol('+'), symbol('-')}))});
+        either({construct<Operator>(keyword("OR")), construct<Operator>(either({symbols("+"), symbols("-")}))});
 
     ParserLinker<ExpressionPtr> simpleExpressionLink;
     auto preSimpleExpression = node_either<Expression>(construct<Term>(syntax_sequence(
@@ -396,8 +397,7 @@ auto expression_parser() {
 
     ParserPtr<Operator> relation =
         either({construct<Operator>(either({keyword("IN"), keyword("IS")})),
-                construct<Operator>(either({symbols("<="), symbols(">=")})),
-                construct<Operator>(either({symbol('<'), symbol('>'), symbol('#'), symbol('=')}))});
+                construct<Operator>(either({symbols("<="), symbols(">="), symbols("<"), symbols(">"), symbols("#"), symbols("=")}))});
 
     auto preExpression = node_either<Expression>(construct<Term>(syntax_sequence(simpleExpression, maybe(syntax_sequence(relation, simpleExpression)))));
     auto realExpression = expressionLink.link(preExpression);
@@ -422,13 +422,13 @@ auto statement_parser(ParserPtr<ExpressionPtr> expression,
 
     auto caseLabel = construct<CaseLabel>(syntax_sequence(lbl, maybe(syntax_index<1>::select(symbols(".."), lbl))));
 
-    auto caseLabelList = extra_delim(caseLabel, symbol(','));
+    auto caseLabelList = extra_delim(caseLabel, symbols(","));
 
-    auto oneCase = syntax_index<0, 2>::select(caseLabelList, symbol(':'), statementSequence);
+    auto oneCase = syntax_index<0, 2>::select(caseLabelList, symbols(":"), statementSequence);
 
     auto caseStatement = construct<CaseStatement>(
         syntax_index<1, 3>::select(keyword("CASE"), expression, keyword("OF"),
-                                   unwrap_maybe_list(extra_delim(maybe(oneCase), symbol('|'))), keyword("END")));
+                                   unwrap_maybe_list(extra_delim(maybe(oneCase), symbols("|"))), keyword("END")));
 
     auto whileStatement = construct<WhileStatement>(syntax_index<0>::select(
         chain(syntax_index<1, 3>::select(keyword("WHILE"), expression, keyword("DO"), statementSequence), many(elsif)),
@@ -443,7 +443,7 @@ auto statement_parser(ParserPtr<ExpressionPtr> expression,
 
     auto statement = node_either<Statement>(assignment, construct<CallStatement>(set_place(procCall)), ifStatement, caseStatement, whileStatement,
                                        repeatStatement, forStatement);
-    auto realStatementSequence = statementSequenceLink.link(unwrap_maybe_list(extra_delim(maybe(statement), symbol(';'))));
+    auto realStatementSequence = statementSequenceLink.link(unwrap_maybe_list(extra_delim(maybe(statement), symbols(";"))));
 
     return realStatementSequence;
 }

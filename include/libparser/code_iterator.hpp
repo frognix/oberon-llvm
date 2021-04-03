@@ -41,11 +41,13 @@ public:
     CodePlace place() const noexcept { return CodePlace(m_index); }
     bool can_move_to(CodePlace place) noexcept { return place.get_index() >= m_no_return_point; }
     void move_to(CodePlace place) noexcept {
-        if (place.get_index() < m_no_return_point) {
+        if (place.get_index() < m_no_return_point || (m_error.type == UNDROPPABLE && place.get_index() < m_error.index)) {
             fmt::print("Trying to return before no_return_point? No way!\n");
             std::terminate();
+        } else {
+            m_index = place.get_index();
+            m_error.type = NONE;
         }
-        m_index = place.get_index();
     }
     void set_no_return_point() { m_no_return_point = m_index; }
     std::optional<char> get() noexcept {
@@ -78,8 +80,9 @@ public:
     }
 
     void error_expected(std::string expected) {
-        m_error.expected = expected;
         if (m_error.type == NONE) {
+            m_error.type = DROPPABLE;
+            m_error.expected = expected;
             m_error.index = m_index;
         }
     }
