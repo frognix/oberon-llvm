@@ -8,139 +8,6 @@
 
 using namespace nodes;
 
-//! Same types: http://miasap.se/obnc/type-compatibility.html
-bool nodes::same_types(Context& context, const Type& left, const Type& right) {
-    auto lname = left.is<TypeName>();
-    auto rname = right.is<TypeName>();
-    if (lname && rname) {
-        return lname->ident == rname->ident;
-    }
-    const TypeName* name;
-    const Type* type;
-    if (lname) {
-        name = lname;
-        type = &right;
-    } else if (rname) {
-        name = rname;
-        type = &left;
-    } else {
-        auto lbase = left.is<BuiltInType>();
-        auto rbase = right.is<BuiltInType>();
-        if (lbase && rbase) return lbase->equal_to(rbase->type);
-        return &left == &right;
-    }
-    auto sres = context.symbols.get_symbol(context.messages, name->ident);
-    if (!sres) return berror;
-    return same_types(context, *sres->type, *type);
-}
-
-bool nodes::equal_types(Context& context, const Type& left, const Type& right) {
-    if (same_types(context, left, right)) return true;
-    auto larray = left.is<ArrayType>();
-    auto rarray = right.is<ArrayType>();
-    if (!larray != !rarray) return false;
-    if (larray && larray->open_array && rarray->open_array) return true;
-    auto lproc = left.is<ProcedureType>();
-    auto rproc = left.is<ProcedureType>();
-    if (!lproc || !rproc) return false;
-    return lproc->params.match(context, rproc->params);
-}
-
-bool nodes::assignment_compatible_types(Context& context, const Type& var, const Type& expr) {
-    //Te and Tv are the same type;
-    if (same_types(context, var, expr)) return true;
-    //Tv is CHAR and e is a single-character string constant;
-    if (auto base = var.is<BuiltInType>(); base && base->equal_to(BaseType::CHAR)) {
-        auto string = expr.is<ConstStringType>();
-        return string && string->size == 1;
-    }
-    //Te is INTEGER and Tv is BYTE or vice versa;
-    {
-        auto vbase = var.is<BuiltInType>();
-        auto ebase = expr.is<BuiltInType>();
-        if (vbase && ebase) {
-            return (vbase->equal_to(BaseType::INTEGER) || vbase->equal_to(BaseType::BYTE))
-                && (ebase->equal_to(BaseType::INTEGER) || ebase->equal_to(BaseType::BYTE));
-        }
-    }
-    //Tv is ARRAY n OF CHAR, e is a string constant with m characters, and m < n;
-    {
-        auto varray = var.is<ArrayType>();
-        auto estring = expr.is<ConstStringType>();
-        if (varray && !varray->open_array && estring) {
-            if (varray->open_array) return false;
-            auto atype = varray->type->is<BuiltInType>();
-            if (!atype || !atype->equal_to(BaseType::CHAR)) return false;
-            auto res = varray->length.get(context);
-            if (!res) internal::compiler_error(__FUNCTION__);
-            auto n = res.value()->is<ConstInteger>()->value;
-            auto m = estring->size;
-            return static_cast<int>(m) < n;
-        }
-    }
-    //Te is an open array, Tv is a non-open array and their element types are equal;
-    {
-        auto varray = var.is<ArrayType>();
-        auto earray = expr.is<ArrayType>();
-        if (varray && earray) {
-            return earray->open_array && !varray->open_array && equal_types(context, *varray->type, *earray->type);
-        }
-    }
-    //Te and Tv are record types and Te is an extension of Tv and the dynamic type of v is Tv;
-    {
-        auto vrecord = var.is<RecordType>();
-        auto erecord = expr.is<RecordType>();
-        if (vrecord && erecord) {
-            return erecord->extends(context, *vrecord);
-            //dynamic type checking is only possible in runtime
-        }
-    }
-    //Te and Tv are pointer types and Te is an extension of Tv;
-    {
-        auto vpointer = var.is<PointerType>();
-        auto epointer = expr.is<PointerType>();
-        if (vpointer && epointer) {
-            return epointer->get_type(context).extends(context, vpointer->get_type(context));
-        }
-    }
-    //Tv is a pointer or a procedure type and e is NIL;
-    {
-        auto vpointer = var.is<PointerType>();
-        auto vproc = var.is<ProcedureType>();
-        auto enil = expr.is<BuiltInType>();
-        if ((vpointer || vproc) && enil) {
-            return enil->equal_to(BaseType::NIL);
-        }
-    }
-    //Tv is a procedure type and e is the name of a procedure whose formal parameters match those of Tv.
-    {
-        auto vproc = var.is<ProcedureType>();
-        auto eproc = expr.is<ProcedureType>();
-        if (vproc && eproc) {
-            return vproc->params.match(context, eproc->params);
-        }
-    }
-    return false;
-}
-
-bool nodes::array_compatible(Context& context, const Type& actual, const Type& formal) {
-    //Tf and Ta are the same type;
-    if (same_types(context, actual, formal)) return true;
-
-    auto farray = formal.is<ArrayType>();
-    if (!farray) return false;
-    //Tf is an open array, Ta is any array, and their element types are array compatible;
-    if (auto aarray = actual.is<ArrayType>(); aarray) {
-        return farray->open_array && array_compatible(context, *aarray->type, *farray->type);
-    }
-    //Tf is ARRAY OF CHAR and a is a string.
-    if (auto astring = actual.is<ConstStringType>(); astring) {
-        auto base = farray->type->is<BuiltInType>();
-        return base->equal_to(BaseType::CHAR); //Size?
-    }
-    return false;
-}
-
 const char* basetype_to_str(BaseType type) {
     switch (type) {
         case BaseType::BOOL: return "BOOL";
@@ -188,6 +55,32 @@ Maybe<TypePtr> BuiltInType::normalize(Context&, bool) const {
     return make_type<BuiltInType>(*this);
 }
 
+bool BuiltInType::same(Context& context, const Type& other) const {
+    if (auto type_name = other.is<TypeName>(); type_name) {
+        auto other_type = type_name->dereference(context);
+        if (!other_type) return berror;
+        same(context, **other_type);
+    } else if (auto base_type = other.is<BuiltInType>(); base_type) {
+        return type == base_type->type;
+    }
+    return false;
+}
+
+bool BuiltInType::equal(Context& context, const Type& other) const {
+    return same(context, other);
+}
+
+bool BuiltInType::assignment_compatible(Context& context, const Type& expr) {
+    if (same(context, expr)) return true;
+    if (auto expr_string = expr.is<ConstStringType>(); expr_string && expr_string->size == 1)
+        return true;
+    if (auto expr_base = expr.is<BuiltInType>(); expr_base) {
+        return (type == BaseType::INTEGER || type == BaseType::BYTE)
+            && (expr_base->type == BaseType::INTEGER || expr_base->type == BaseType::BYTE);
+    }
+    return false;
+}
+
 std::string TypeName::to_string() const {
     return ident.to_string();
 }
@@ -202,11 +95,40 @@ Maybe<TypePtr> TypeName::dereference(Context& context) const {
         return symbol->type;
 }
 
-Maybe<TypePtr> TypeName::normalize(Context& context, bool normalize_pointers) const {
+Maybe<TypePtr> TypeName::normalize(Context& context, bool) const {
     auto symbol = context.symbols.get_symbol(context.messages, ident);
     if (!symbol)
         return error;
-    return symbol->type->normalize(context, normalize_pointers);
+    return symbol->type;
+}
+
+bool TypeName::same(Context& context, const Type& other) const {
+    auto this_type = dereference(context);
+    if (!this_type) return berror;
+    const Type* other_type = &other;
+    if (auto other_name = other.is<TypeName>(); other_name) {
+        if (ident == other_name->ident) return true;
+        auto maybe_other_type = other_name->dereference(context);
+        if (!maybe_other_type) return berror;
+        other_type = maybe_other_type.value().get();
+    }
+    return this_type.value()->same(context, *other_type);
+}
+
+bool TypeName::equal(Context& context, const Type& other) const {
+    return same(context, other);
+}
+
+bool TypeName::assignment_compatible(Context& context, const Type& expr) {
+    auto this_type = dereference(context);
+    if (!this_type) return berror;
+    const Type* expr_type = &expr;
+    if (auto expr_name = expr.is<TypeName>(); expr_name) {
+        auto maybe_type = expr_name->dereference(context);
+        if (!maybe_type) return berror;
+        expr_type = maybe_type.value().get();
+    }
+    return this_type.value()->same(context, *expr_type);
 }
 
 std::string ImportTypeName::to_string() const {
@@ -215,6 +137,22 @@ std::string ImportTypeName::to_string() const {
 
 Maybe<TypePtr> ImportTypeName::normalize(Context&, bool) const {
     return make_type<ImportTypeName>(*this);
+}
+
+bool ImportTypeName::same(Context& context, const Type& other) const {
+    if (auto import_name = other.is<ImportTypeName>(); import_name) {
+        return ident == import_name->ident;
+    } else {
+        return other.same(context, *this);
+    }
+}
+
+bool ImportTypeName::equal(Context& context, const Type& other) const {
+    return same(context, other);
+}
+
+bool ImportTypeName::assignment_compatible(Context& context, const Type& expr) {
+    return equal(context, expr);
 }
 
 std::string RecordType::to_string() const {
@@ -251,12 +189,11 @@ Maybe<TypePtr> RecordType::has_field(const Ident& ident, Context& context) const
 bool RecordType::extends(Context& context, const Type& type) const {
     auto typeRes = type.is<RecordType>();
     if (!typeRes) return false;
-    auto& other = *typeRes;
-    if (same_types(context, *this, other)) return true;
+    if (this->same(context, *typeRes)) return true;
     if (!basetype) return false;
     auto res = context.symbols.get_symbol(context.messages, *basetype);
     if (!res) internal::compiler_error("Basetype symbol not found");
-    if (same_types(context, *res->type, other)) return true;
+    if (res->type->same(context, *typeRes)) return true;
     else {
         auto record = res->type->is<RecordType>();
         if (!record) internal::compiler_error("Basetype is not record type");
@@ -273,6 +210,22 @@ Maybe<TypePtr> RecordType::normalize(Context& context, bool normalize_pointers) 
         list.type = *res;
     }
     return make_type<RecordType>(copy);
+}
+
+bool RecordType::same(Context& context, const Type& other) const {
+    if (other.is<TypeName>()) return other.same(context, *this);
+    return this == &other;
+}
+
+bool RecordType::equal(Context& context, const Type& other) const {
+    return same(context, other);
+}
+
+bool RecordType::assignment_compatible(Context& context, const Type& expr) {
+    if (auto expr_record = expr.is<RecordType>(); expr_record) {
+        return expr_record->extends(context, *this);
+    }
+    return same(context, expr);
 }
 
 std::string PointerType::to_string() const {
@@ -309,10 +262,45 @@ Maybe<TypePtr> PointerType::normalize(Context& context, bool normalize_pointers)
     return make_type<PointerType>(copy);
 }
 
+bool PointerType::same(Context& context, const Type& other) const {
+    if (other.is<TypeName>()) return other.same(context, *this);
+    return this == &other;
+}
+
+bool PointerType::equal(Context& context, const Type& other) const {
+    return same(context, other);
+}
+
+bool PointerType::assignment_compatible(Context& context, const Type& expr) {
+    if (auto expr_pointer = expr.is<PointerType>(); expr_pointer) {
+        auto& expr_type = expr_pointer->get_type(context);
+        return expr_type.extends(context, get_type(context));
+    } else if (auto expr_base = expr.is<BuiltInType>(); expr_base && expr_base->type == BaseType::NIL) {
+        return true;
+    }
+    return same(context, expr);
+}
+
 std::string ConstStringType::to_string() const { return fmt::format("String[{}]", size); }
 
 Maybe<TypePtr> ConstStringType::normalize(Context&, bool) const {
     return make_type<ConstStringType>(*this);
+}
+
+bool ConstStringType::same(Context& context, const Type& other) const {
+    if (auto string = other.is<ConstStringType>(); string) {
+        return size == string->size;
+    } else {
+        return other.same(context, *this);
+    }
+}
+
+bool ConstStringType::equal(Context& context, const Type& other) const {
+    return same(context, other);
+}
+
+bool ConstStringType::assignment_compatible(Context&, const Type&) {
+    return false;
 }
 
 std::string ArrayType::to_string() const {
@@ -342,6 +330,36 @@ Maybe<TypePtr> ArrayType::normalize(Context& context, bool normalize_pointers) c
     return make_type<ArrayType>(copy);
 }
 
+bool ArrayType::same(Context& context, const Type& other) const {
+    if (other.is<TypeName>()) return other.same(context, *this);
+    return this == &other;
+}
+
+bool ArrayType::equal(Context& context, const Type& other) const {
+    if (auto other_array = other.is<ArrayType>(); other_array && open_array && other_array->open_array) {
+        return type->equal(context, *other_array->type);
+    } else if (auto other_name = other.is<TypeName>(); other_name) {
+        auto other_type = other_name->dereference(context);
+        if (!other_type) return berror;
+        return equal(context, *other_type.value());
+    }
+    return false;
+}
+
+bool ArrayType::assignment_compatible(Context& context, const Type& expr) {
+    if (auto expr_string = expr.is<ConstStringType>(); expr_string) {
+        auto array_type = type->is<BuiltInType>();
+        auto maybe_size = length.get(context);
+        if (!maybe_size) return berror;
+        auto size = maybe_size.value()->is<ConstInteger>();
+        return !open_array && array_type && array_type->type == BaseType::CHAR
+            && size && (size->value > static_cast<int>(expr_string->size));
+    } else if (auto expr_array = expr.is<ArrayType>(); expr_array && expr_array->open_array) {
+        return type->equal(context, *expr_array->type);
+    }
+    return same(context, expr);
+}
+
 Maybe<TypePtr> ArrayType::drop_dimensions(size_t count, Context& context) const {
     if (count == 0) return make_type<ArrayType>(*this);
     else if (auto array = type->is<ArrayType>(); !array) {
@@ -353,6 +371,24 @@ Maybe<TypePtr> ArrayType::drop_dimensions(size_t count, Context& context) const 
     } else {
         return array->drop_dimensions(count - 1, context);
     }
+}
+
+bool ArrayType::compatible(Context& context, const Type& actual, const Type& formal) {
+    //Tf and Ta are the same type;
+    if (actual.same(context, formal)) return true;
+
+    auto farray = formal.is<ArrayType>();
+    if (!farray) return false;
+    //Tf is an open array, Ta is any array, and their element types are array compatible;
+    if (auto aarray = actual.is<ArrayType>(); aarray) {
+        return farray->open_array && compatible(context, *aarray->type, *farray->type);
+    }
+    //Tf is ARRAY OF CHAR and a is a string.
+    if (auto astring = actual.is<ConstStringType>(); astring) {
+        auto base = farray->type->is<BuiltInType>();
+        return base->equal_to(BaseType::CHAR); //Size?
+    }
+    return false;
 }
 
 ArrayType::ArrayType(std::vector<ExpressionPtr> l, TypePtr t, bool u) : open_array(u) {
@@ -368,10 +404,10 @@ ArrayType::ArrayType(std::vector<ExpressionPtr> l, TypePtr t, bool u) : open_arr
 bool FormalParameters::match(Context& context, const FormalParameters& other) const {
     if (params.size() != other.params.size()) return false;
     if (!rettype == !other.rettype) return false;
-    if (rettype && !same_types(context, **rettype, **other.rettype)) return false;
+    if (rettype && !rettype.value()->same(context, **other.rettype)) return false;
     for (size_t i = 0; i < params.size(); ++i) {
         if (params[i].var != other.params[i].var) return false;
-        if (!equal_types(context, *params[i].type, *other.params[i].type)) return false;
+        if (!params[i].type->equal(context, *other.params[i].type)) return false;
     }
     return true;
 }
@@ -389,6 +425,31 @@ Maybe<TypePtr> ProcedureType::normalize(Context& context, bool normalize_pointer
         section.type = *res;
     }
     return make_type<ProcedureType>(copy);
+}
+
+bool ProcedureType::same(Context& context, const Type& other) const {
+    if (other.is<TypeName>()) return other.same(context, *this);
+    return this == &other;
+}
+
+bool ProcedureType::equal(Context& context, const Type& other) const {
+    if (auto other_procedure = other.is<ProcedureType>(); other_procedure) {
+        return params.match(context, other_procedure->params);
+    } else if (auto other_name = other.is<TypeName>(); other_name) {
+        auto other_type = other_name->dereference(context);
+        if (!other_type) return berror;
+        return equal(context, *other_type.value());
+    }
+    return false;
+}
+
+bool ProcedureType::assignment_compatible(Context& context, const Type& expr) {
+    if (auto expr_procedure = expr.is<ProcedureType>(); expr_procedure) {
+        return params.match(context, expr_procedure->params);
+    } else if (auto expr_base = expr.is<BuiltInType>(); expr_base && expr_base->type == BaseType::NIL) {
+        return true;
+    }
+    return same(context, expr);
 }
 
 ProcedureType::ProcedureType(std::optional<FormalParameters> par) {

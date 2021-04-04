@@ -6,6 +6,9 @@ namespace nodes {
 
 struct Type : Node {
     virtual Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const = 0;
+    virtual bool same(Context& context, const Type& other) const = 0;
+    virtual bool equal(Context& context, const Type& other) const = 0;
+    virtual bool assignment_compatible(Context& context, const Type& expr) = 0;
     virtual ~Type() = default;
 };
 
@@ -19,11 +22,6 @@ enum class BaseType {
     SET,
     NIL
 };
-
-bool same_types(Context& context, const Type& left, const Type& right);
-bool equal_types(Context& context, const Type& left, const Type& right);
-bool assignment_compatible_types(Context& context, const Type& var, const Type& expr);
-bool array_compatible(Context& context, const Type& left, const Type& right);
 
 using IdentList = std::vector<IdentDef>;
 

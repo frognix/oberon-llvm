@@ -360,7 +360,7 @@ Maybe<SymbolToken> Designator::get_symbol(Context& context, CodePlace place) con
             } else if (auto ident = std::get_if<QualIdent>(&sel); ident) {
                 auto typeSymbol = context.symbols.get_symbol(context.messages, *ident);
                 if (!typeSymbol) return error;
-                if (assignment_compatible_types(context, *symbol.type, *typeSymbol->type)) {
+                if (symbol.type->assignment_compatible(context, *typeSymbol->type)) {
                     symbol.type = typeSymbol->type;
                 } else {
                     context.messages.addErr(place, "'{}' is not an extension of '{}'", typeSymbol->type->to_string(), symbol.type->to_string());
@@ -456,7 +456,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_info(Context& context) cons
             context.messages.addErr(expr->place, "Expected variable");
             compatible_types = false;
         }
-        if (!assignment_compatible_types(context, *var.type, *exprType) && !array_compatible(context, *exprType, *var.type)) {
+        if (!var.type->assignment_compatible(context, *exprType) && !ArrayType::compatible(context, *exprType, *var.type)) {
             context.messages.addErr(place, "Can't match actual and formal parameter: {} and {}", exprType->to_string(), var.type->to_string());
             compatible_types = false;
         }
@@ -569,7 +569,7 @@ Operator::Operator(Ident v) : value(ident_to_optype({v.value.data(), v.value.siz
 Operator::Operator(std::string_view v) : value(ident_to_optype(v)) {}
 
 inline bool same_or(Context& context, const Type& expr, const Type& type1, const Type& type2) {
-    return same_types(context, expr, type1) || same_types(context, expr, type2);
+    return expr.same(context, type1) || expr.same(context, type2);
 }
 
 inline bool same_or_base(Context& context, const Type& expr, BaseType type1, BaseType type2) {
@@ -650,16 +650,16 @@ Maybe<BaseType> nodes::expression_compatible(Context& context, CodePlace place, 
         }
     }
     if (oper == OP_EQ || oper == OP_NEQ || oper == OP_LT || oper == OP_LTE || oper == OP_GT || oper == OP_GTE) {
-        if ((same_types(context, left, BuiltInType(BaseType::CHAR)) || same_types(context, left, ConstStringType(1)))
-            && (same_types(context, right, BuiltInType(BaseType::CHAR)) || same_types(context, right, ConstStringType(1))))
+        if ((left.same(context, BuiltInType(BaseType::CHAR)) || left.same(context, ConstStringType(1)))
+            && (right.same(context, BuiltInType(BaseType::CHAR)) || right.same(context, ConstStringType(1))))
             return BaseType::BOOL;
     }
     if (oper == OP_EQ || oper == OP_NEQ) {
-        if ((same_types(context, left, BuiltInType(BaseType::NIL)) || left.is<PointerType>())
-            && (same_types(context, right, BuiltInType(BaseType::NIL)) || right.is<PointerType>()))
+        if ((left.same(context, BuiltInType(BaseType::NIL)) || left.is<PointerType>())
+            && (right.same(context, BuiltInType(BaseType::NIL)) || right.is<PointerType>()))
             return BaseType::BOOL;
-        if ((same_types(context, left, BuiltInType(BaseType::NIL)) || left.is<ProcedureType>())
-            && (same_types(context, right, BuiltInType(BaseType::NIL)) || right.is<ProcedureType>()))
+        if ((left.same(context, BuiltInType(BaseType::NIL)) || left.is<ProcedureType>())
+            && (right.same(context, BuiltInType(BaseType::NIL)) || right.is<ProcedureType>()))
         return BaseType::BOOL;
     }
     if (oper == OP_IS) {

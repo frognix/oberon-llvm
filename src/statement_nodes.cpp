@@ -4,7 +4,6 @@
 
 #include "semantic_context.hpp"
 #include "symbol_table_i.hpp"
-#include "single_symbol_table.hpp"
 #include "type.hpp"
 
 using namespace nodes;
@@ -38,7 +37,7 @@ bool Assignment::check(Context& context) const {
         return berror;
     auto& lltype = *lsymbol->type;
     auto& [group, rrtype] = *rtype;
-    if (assignment_compatible_types(context, lltype, *rrtype)) {
+    if (lltype.assignment_compatible(context, *rrtype)) {
         return bsuccess;
     } else {
         context.messages.addErr(place, "Incompatible types in assignment: {} and {}", lsymbol->type->to_string(),
