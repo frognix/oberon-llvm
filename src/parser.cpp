@@ -206,7 +206,7 @@ const std::vector<Ident> keywords = []() {
     std::vector<std::string_view> vec = {
         "ARRAY",  "FOR",   "PROCEDURE", "BEGIN", "IF",    "RECORD", "BY", "IMPORT", "REPEAT", "CASE",    "IN",
         "RETURN", "CONST", "IS",        "THEN",  "DIV",   "MOD",    "TO", "DO",     "MODULE", "TRUE",    "ELSE",
-        "NIL",    "TYPE",  "ELSIF",     "OF",    "UNTIL", "END",    "OR", "VAR",    "FALSE",  "POINTER", "WHILE"};
+        "NIL",    "TYPE",  "ELSIF",     "OF",    "UNTIL", "END",    "OR", "VAR",    "FALSE",  "POINTER", "WHILE", "COMMON"};
     std::vector<Ident> result{};
     std::transform(vec.begin(), vec.end(), std::back_inserter(result), [](auto s) { return str_to_ident(s); });
     return result;
@@ -239,18 +239,21 @@ ParserPtr<IdentDef> identdef = extension(sequence(ident, maybe(symbol('*'))), []
     return IdentDef{ident, (bool)def};
  });
 
-auto type_parser(ParserPtr<ExpressionPtr> expression) {
+auto type_parser(ParserPtr<ExpressionPtr> expression, ParserPtr<CommonFeature> commonFeature) {
     ParserLinker<TypePtr> typeLink;
     auto type = typeLink.get();
 
-    ParserPtr<IdentList> identList = extra_delim(identdef, symbol(','));
-    ParserPtr<FieldList> fieldList = construct<FieldList>(syntax_index<0, 2>::select(identList, symbol(':'), type));
-
-    ParserPtr<BuiltInType> builtInType = construct<BuiltInType>(either({keyword("BOOLEAN"), keyword("CHAR"),
-                keyword("INTEGER"), keyword("REAL"),
-                keyword("BYTE"), keyword("SET")}));
+    ParserPtr<BuiltInType> builtInType = construct<BuiltInType>(either({symbols("BOOLEAN"), symbols("CHAR"),
+                symbols("INTEGER"), symbols("REAL"),
+                symbols("BYTE"), symbols("SET")}));
 
     ParserPtr<TypePtr> typeName = node_either<Type>(builtInType, construct<TypeName>(qualident));
+
+    ParserPtr<IdentList> identList = extra_delim(identdef, symbol(','));
+
+    ParserPtr<TypePtr> scalarType = node_either<Type>(construct<ScalarType>(syntax_index<0,2>::select(typeName, symbol('<'), commonFeature, symbol('>'))));
+
+    ParserPtr<FieldList> fieldList = construct<FieldList>(syntax_index<0, 2>::select(identList, symbol(':'), either({scalarType, type})));
 
     ParserPtr<FieldListSequence> fieldListSequence = extra_delim(fieldList, symbol(';'));
 
@@ -272,10 +275,9 @@ auto type_parser(ParserPtr<ExpressionPtr> expression) {
     ParserPtr<ArrayType> arrayType = construct<ArrayType>(
         syntax_index<1, 3>::select(keyword("ARRAY"), extra_delim(expression, symbol(',')), keyword("OF"), type));
 
-    ParserPtr<TypePtr> formalType = extension(syntax_sequence(many(syntax_sequence(keyword("ARRAY"), keyword("OF"))), qualident),
+    ParserPtr<TypePtr> formalType = extension(syntax_sequence(many(syntax_sequence(keyword("ARRAY"), keyword("OF"))), typeName),
         [](const auto& data) {
-            auto [array, ident] = data;
-            auto typeName = is_base_type(ident.ident) ? make_type<BuiltInType>(ident.ident) : make_type<TypeName>(ident);
+            auto [array, typeName] = data;
             if (array.size() > 0) {
                 std::vector<ExpressionPtr> vec(array.size(), make_expression<ConstInteger>(1));
                 return make_type<ArrayType>(vec, typeName, true);
@@ -292,7 +294,16 @@ auto type_parser(ParserPtr<ExpressionPtr> expression) {
 
     auto procedureType = construct<ProcedureType>(syntax_index<1>::select(keyword("PROCEDURE"), maybe(formalParameters)));
 
-    ParserPtr<TypePtr> strucType = node_either<Type>(recordType, pointerType, arrayType, procedureType);
+    auto commonFeatureType = construct<CommonFeatureType>(either({symbols("INTEGER"), symbols("BYTE"), symbols("SET"), symbols("CHAR"), symbols("TYPE"), symbols("LOCAL")}));
+
+    auto commonPair = construct<CommonPair>(syntax_index<0,2>::select(commonFeature, symbols(":"), typeName));
+
+    auto commonType = construct<CommonType>(syntax_index<1,3,4>::select(keyword("COMMON"), commonFeatureType, keyword("OF"),
+                                                                    extra_delim(commonPair, symbols("|")),
+                                                                        maybe(syntax_index<1>::select(keyword("ELSE"), typeName)),
+                                                                        keyword(("END"))));
+
+    ParserPtr<TypePtr> strucType = node_either<Type>(recordType, pointerType, arrayType, procedureType, commonType);
 
     auto realType = typeLink.link(either({strucType, typeName}));
 
@@ -403,8 +414,9 @@ auto expression_parser() {
     auto realExpression = expressionLink.link(preExpression);
 
     auto lbl = variant(integer, string, qualident);
+    auto commonFeature = construct<CommonFeature>(variant(ident, constInteger, string));
 
-    return std::tuple{realExpression, procCall, designator, lbl};
+    return std::tuple{realExpression, procCall, designator, lbl, commonFeature};
 }
 
 auto statement_parser(ParserPtr<ExpressionPtr> expression,
@@ -525,11 +537,11 @@ ParserPtr<Definition> definition_parser(ParserPtr<ImportList> importList,
 
 ParserPtr<std::shared_ptr<IModule>> get_parsers() {
 
-    auto [expression, procCall, designator, lbl] = expression_parser();
+    auto [expression, procCall, designator, lbl, commonFeature] = expression_parser();
 
     auto statementSequence = statement_parser(expression, lbl, designator, procCall);
 
-    auto [type, formalParameters, fieldList] = type_parser(expression);
+    auto [type, formalParameters, fieldList] = type_parser(expression, commonFeature);
 
     auto [declarationSequence, constDecl, typeDecl, variableDecl] = declarations_parser(type, expression, fieldList, formalParameters, statementSequence);
 

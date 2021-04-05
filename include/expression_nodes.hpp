@@ -3,7 +3,6 @@
 #include "expression.hpp"
 #include "parser_tools.hpp"
 #include "statement.hpp"
-#include "type_nodes.hpp"
 #include <variant>
 #include <set>
 
@@ -16,6 +15,9 @@ struct ConstInteger : Value {
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
+
+    bool operator == (const ConstInteger& other) const { return value == other.value; }
+
     ConstInteger(Integer i) : value(i) {}
     Integer value;
 };
@@ -43,6 +45,9 @@ struct String : Value {
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
+
+    bool operator == (const String& other) const  { return value == other.value; }
+
     String(std::vector<char> v) : value(v) {}
     std::vector<char> value;
 };

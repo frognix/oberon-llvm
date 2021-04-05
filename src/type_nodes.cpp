@@ -6,6 +6,10 @@
 #include "symbol_table.hpp"
 #include "type_nodes.hpp"
 
+#include <ranges>
+#include <algorithm>
+
+
 using namespace nodes;
 
 const char* basetype_to_str(BaseType type) {
@@ -21,20 +25,20 @@ const char* basetype_to_str(BaseType type) {
     }
 }
 
-BaseType ident_to_basetype(Ident i) {
-    if (i.equal_to("BOOLEAN"))
+BaseType ident_to_basetype(std::string_view i) {
+    if (i == "BOOLEAN")
         return BaseType::BOOL;
-    if (i.equal_to("CHAR"))
+    if (i == "CHAR")
         return BaseType::CHAR;
-    if (i.equal_to("INTEGER"))
+    if (i == "INTEGER")
         return BaseType::INTEGER;
-    if (i.equal_to("REAL"))
+    if (i == "REAL")
         return BaseType::REAL;
-    if (i.equal_to("BYTE"))
+    if (i == "BYTE")
         return BaseType::BYTE;
-    if (i.equal_to("SET"))
+    if (i == "SET")
         return BaseType::SET;
-    if (i.equal_to("NIL"))
+    if (i == "NIL")
         return BaseType::NIL;
     internal::compiler_error(fmt::format("Unexpected BaseType ident: '{}'", i));
 }
@@ -43,7 +47,7 @@ bool BuiltInType::equal_to(BaseType other) const {
     return type == other;
 }
 
-BuiltInType::BuiltInType(Ident i) : type(ident_to_basetype(i)) {}
+BuiltInType::BuiltInType(std::string_view i) : type(ident_to_basetype(i)) {}
 
 BuiltInType::BuiltInType(BaseType t) : type(t) {}
 
@@ -456,3 +460,82 @@ ProcedureType::ProcedureType(std::optional<FormalParameters> par) {
     if (par)
         params = *par;
 }
+
+std::string CommonType::to_string() const {
+    return fmt::format("COMMON {} OF {}{} END",
+                       common_feature_type.to_string(), fmt::join(pair_list, " | "),
+                       else_clause ? fmt::format(" ELSE {}", else_clause.value()->to_string()) : "");
+}
+
+Maybe<TypePtr> CommonType::normalize(Context& context, bool normalize_pointers) const {
+    CommonType copy;
+    copy.common_feature_type = common_feature_type;
+    //Проверка на то что все варианты имеют один тип метки
+    if (pair_list.size() > 0) {
+        auto featureIndex = pair_list.front().feature.value.index();
+        auto check = [featureIndex] (auto p) {
+            return p.feature.value.index() == featureIndex;
+        };
+        if (!std::ranges::all_of(pair_list, check)) {
+            context.messages.addErr(place, "Common features have different types");
+            return error;
+        }
+    }
+    for (auto pair : pair_list) {
+        if (copy.has_case(pair.feature)) {
+            context.messages.addErr(place, "Multiple common features with same name: {}", pair.feature);
+            return error;
+        }
+        auto type = pair.type->normalize(context, normalize_pointers);
+        if (!type) return error;
+        copy.pair_list.emplace_back(pair.feature, type.value());
+    }
+    if (else_clause) {
+        auto type = else_clause.value()->normalize(context, normalize_pointers);
+        if (!type) return error;
+        copy.else_clause = type.value();
+    }
+    return make_type<CommonType>(copy);
+}
+
+bool CommonType::same(Context& context, const Type& other) const {
+    if (other.is<TypeName>()) return other.same(context, *this);
+    return this == &other;
+}
+
+bool CommonType::equal(Context& context, const Type& other) const {
+    return same(context, other);
+}
+
+//! \todo Не совсем понятно что тут должно быть
+bool CommonType::assignment_compatible(Context& context, const Type& expr) {
+    return same(context, expr);
+}
+
+bool CommonType::has_case(CommonFeature feature) const {
+    return std::ranges::find_if(pair_list, [feature](auto p){return p.feature == feature;}) != pair_list.end();
+}
+
+std::string ScalarType::to_string() const {
+    return fmt::format("({})<{}>", type->to_string(), feature);
+}
+
+Maybe<TypePtr> ScalarType::normalize(Context& context, bool normalize_pointers) const {
+    ScalarType copy;
+    copy.feature = feature;
+    auto new_type = type->normalize(context, normalize_pointers);
+    if (!new_type) return error;
+    if (auto common_type = new_type.value()->is<CommonType>(); !common_type) {
+        context.messages.addErr(type->place, "Expected CommonType, found: {}", new_type.value()->to_string());
+        return error;
+    } else if (!common_type->has_case(feature)) {
+        context.messages.addErr(place, "Feature with name {}, not found in {}", feature, type->to_string());
+        return error;
+    }
+    copy.type = new_type.value();
+    return make_type<ScalarType>(copy);
+}
+
+bool ScalarType::same(Context& context, const Type& other) const {}
+bool ScalarType::equal(Context& context, const Type& other) const {}
+bool ScalarType::assignment_compatible(Context& context, const Type& expr) {}

@@ -375,3 +375,30 @@ struct fmt::formatter<nodes::Import> {
             return fmt::format_to(ctx.out(), "{} := {}", id.name, id.real_name);
     }
 };
+
+template <>
+struct fmt::formatter<nodes::CommonFeature> {
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(nodes::CommonFeature const& feature, FormatContext& ctx) {
+        return fmt::format_to(ctx.out(), "{}", std::visit([](auto&& v){ return v.to_string(); }, feature.value));
+    }
+};
+
+
+template <>
+struct fmt::formatter<nodes::CommonPair> {
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(nodes::CommonPair const& pair, FormatContext& ctx) {
+        return fmt::format_to(ctx.out(), "{} : {}", pair.feature, pair.type->to_string());
+    }
+};

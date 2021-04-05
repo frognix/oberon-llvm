@@ -2,7 +2,9 @@
 
 #include "const_value.hpp"
 #include "expression.hpp"
+#include "expression_nodes.hpp"
 #include "internal_error.hpp"
+#include "node.hpp"
 #include "type.hpp"
 
 namespace nodes {
@@ -15,7 +17,7 @@ struct BuiltInType : Type {
     virtual bool assignment_compatible(Context& context, const Type& expr);
     bool equal_to(BaseType t) const;
     BuiltInType() : type() {}
-    BuiltInType(Ident i);
+    BuiltInType(std::string_view i);
     BuiltInType(BaseType t);
     BaseType type = BaseType::NONE;
 };
@@ -36,6 +38,7 @@ struct TypeName : Type {
     virtual bool equal(Context& context, const Type& other) const;
     virtual bool assignment_compatible(Context& context, const Type& expr);
     Maybe<TypePtr> dereference(Context& table) const;
+    TypeName() {}
     TypeName(QualIdent i) : ident(i) {
         if (!i.qual && is_base_type(i.ident))
             internal::compiler_error("BaseType in TypeName");
@@ -143,6 +146,75 @@ struct ProcedureType : Type {
     ProcedureType() {}
     ProcedureType(std::optional<FormalParameters> par);
     FormalParameters params;
+};
+
+struct CommonFeature {
+    bool operator == (const CommonFeature&) const = default;
+    std::variant<Ident, ConstInteger, String> value;
+};
+
+struct CommonFeatureType {
+    enum {
+        INTEGER, BYTE, SET, CHAR, TYPE, LOCAL
+    } value;
+    CommonFeatureType() {}
+    CommonFeatureType(std::string_view type) {
+        if (type == "INTEGER") value = INTEGER;
+        else if (type == "BYTE") value = BYTE;
+        else if (type == "SET") value = SET;
+        else if (type == "CHAR") value = CHAR;
+        else if (type == "TYPE") value = TYPE;
+        else if (type == "LOCAL") value = LOCAL;
+        else internal::compiler_error("Incorrect CommonFeatureType");
+    }
+    const char* to_string() const {
+        switch (value) {
+            case INTEGER: return "INTEGER";
+            case BYTE:    return "BYTE";
+            case SET:     return "SET";
+            case CHAR:    return "CHAR";
+            case TYPE:    return "TYPE";
+            case LOCAL:   return "LOCAL";
+            default: internal::compiler_error("Incorrect CommonFeatureType");
+        }
+    }
+};
+
+struct CommonPair {
+    CommonFeature feature;
+    TypePtr type;
+};
+
+struct CommonType : Type {
+    std::string to_string() const override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
+    bool same(Context& context, const Type& other) const override;
+    bool equal(Context& context, const Type& other) const override;
+    bool assignment_compatible(Context& context, const Type& expr) override;
+
+    bool has_case(CommonFeature feature) const;
+
+    CommonType() {}
+    CommonType(CommonFeatureType cft, std::vector<CommonPair> pl, std::optional<TypePtr> ec)
+        : common_feature_type(cft), pair_list(pl), else_clause(ec) {}
+
+    CommonFeatureType common_feature_type;
+    std::vector<CommonPair> pair_list;
+    std::optional<TypePtr> else_clause;
+};
+
+struct ScalarType : Type {
+    std::string to_string() const override;
+    Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const override;
+    bool same(Context& context, const Type& other) const override;
+    bool equal(Context& context, const Type& other) const override;
+    bool assignment_compatible(Context& context, const Type& expr) override;
+
+    ScalarType() {}
+    ScalarType(TypePtr t, CommonFeature f) : type(t), feature(f) {}
+
+    TypePtr type;
+    CommonFeature feature;
 };
 
 } // namespace nodes
