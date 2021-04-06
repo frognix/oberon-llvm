@@ -2,8 +2,6 @@
 
 #include "node.hpp"
 
-class SymbolTable;
-
 namespace nodes {
 
 struct Statement : Node {

@@ -1,14 +1,13 @@
 #pragma once
 
-// #include "symbol_table.hpp"
 #include "message_container.hpp"
 
-class SymbolTableI;
+class SymbolTable;
 
 struct SemanticContext {
-    SemanticContext(MessageContainer& m, const SymbolTableI& s) : messages(m), symbols(s) {}
+    SemanticContext(MessageContainer& m, const SymbolTable& s) : messages(m), symbols(s) {}
     MessageContainer& messages;
-    const SymbolTableI& symbols;
+    const SymbolTable& symbols;
 };
 
 template <class T>

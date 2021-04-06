@@ -1,6 +1,6 @@
 #pragma once
 
-#include "symbol_table.hpp"
+#include "symbol_container.hpp"
 #include "module_table_i.hpp"
 
 class ModuleTable : public ModuleTableI {
@@ -14,7 +14,7 @@ public:
     virtual Maybe<nodes::ValuePtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
     Maybe<TablePtr> get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const override;
 
-    const SymbolTable& get_symbols() const override { return symbols; }
+    const SymbolContainer& get_symbols() const override { return symbols; }
 
     virtual std::string to_string() const override;
     bool analyze_code(MessageContainer& messages) const override;
@@ -22,7 +22,7 @@ public:
 private:
     ModuleTable() {}
     bool add_import(MessageContainer&, nodes::Import import, ModuleTablePtr module);
-    SymbolTable symbols;
+    SymbolContainer symbols;
     nodes::Ident m_name;
     SymbolMap<Import> m_imports;
     SymbolSet m_exports;

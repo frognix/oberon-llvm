@@ -12,7 +12,7 @@ std::unique_ptr<ModuleTable> ModuleTable::parse(const nodes::Module& module, std
         if (ident.def) table->add_export(ident.ident);
         return true;
     };
-    auto parseRes = SymbolTable::parse(table->symbols, context, module.declarations, module.body, func);
+    auto parseRes = SymbolContainer::parse(table->symbols, context, module.declarations, module.body, func);
     if (!parseRes) return nullptr;
     return table;
 }
@@ -36,7 +36,7 @@ std::unique_ptr<ModuleTable> ModuleTable::parse(const nodes::Definition& def, st
     for (auto proc : def.definitions.procedureDecls) {
         seq.variableDecls.push_back(nodes::VariableDecl({proc.name}, make_type<nodes::ProcedureType>(proc.type)));
     }
-    SymbolTable::parse(table->symbols, context, seq, {}, func);
+    SymbolContainer::parse(table->symbols, context, seq, {}, func);
     return table;
 }
 

@@ -3,7 +3,7 @@
 #include "node_formatters.hpp"
 
 #include "semantic_context.hpp"
-#include "symbol_table_i.hpp"
+#include "symbol_table.hpp"
 #include "type.hpp"
 
 using namespace nodes;

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "symbol_table_i.hpp"
+#include "symbol_table.hpp"
 
-class ModuleTableI : public SemanticUnitI {
+class ModuleTableI : public SemanticUnit {
 public:
     virtual Maybe<SymbolToken> get_symbol_out(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
 };

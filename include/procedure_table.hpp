@@ -1,15 +1,15 @@
 #pragma once
 
 #include "message_container.hpp"
+#include "symbol_container.hpp"
 #include "symbol_table.hpp"
-#include "symbol_table_i.hpp"
 #include <memory>
 
-class IProcedureTable : public SemanticUnitI {
+class ProcedureTable : public SemanticUnit {
 public:
-    virtual bool can_overload(const IProcedureTable&) const = 0;
-    virtual bool overload(MessageContainer&, std::shared_ptr<IProcedureTable>) = 0;
-    virtual const SymbolTableI& parent() const = 0;
+    virtual bool can_overload(const ProcedureTable&) const = 0;
+    virtual bool overload(MessageContainer&, std::shared_ptr<ProcedureTable>) = 0;
+    virtual const SymbolTable& parent() const = 0;
 
     Maybe<SymbolToken> get_symbol(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const override {
         if (ident.qual) {
@@ -63,5 +63,5 @@ public:
     }
 };
 
-std::unique_ptr<IProcedureTable> build_procedure_table(const nodes::ProcedureDeclaration& proc, const nodes::ProcedureType& type,
-                                                       const SymbolTableI* parent, MessageContainer& mm);
+std::unique_ptr<ProcedureTable> build_procedure_table(const nodes::ProcedureDeclaration& proc, const nodes::ProcedureType& type,
+                                                       const SymbolTable* parent, MessageContainer& mm);

@@ -1,37 +1,53 @@
 #pragma once
 
-#include "symbol_table_i.hpp"
-#include "nodes.hpp"
-#include <functional>
+#include "node.hpp"
+#include "symbol_token.hpp"
+
+namespace std {
+
+template <>
+struct hash<nodes::Ident> {
+    std::size_t operator()(nodes::Ident const& id) const noexcept {
+        return std::hash<std::string_view>{}(std::string_view(id.value.data(), id.value.size()));
+    }
+};
+
+template <>
+struct hash<nodes::QualIdent> {
+    std::size_t operator()(nodes::QualIdent const& id) const noexcept {
+        if (!id.qual) {
+            return std::hash<nodes::Ident>{}(id.ident);
+        } else {
+            return std::hash<nodes::Ident>{}(id.ident) ^ std::hash<nodes::Ident>{}(*id.qual);
+        }
+    }
+};
+
+} // namespace std
 
 class ProcedureTable;
 
-class MessageContainer;
+using TablePtr = std::shared_ptr<ProcedureTable>;
 
-using ParseReturnType = std::optional<std::unique_ptr<SemanticUnitI>>;
+class SymbolContainer;
 
 class SymbolTable {
 public:
-    SymbolTable() {}
-    static bool parse(SymbolTable& table, nodes::Context& context, const nodes::DeclarationSequence& seq, nodes::StatementSequence body, std::function<bool(nodes::IdentDef,nodes::Context&)> func);
+    virtual ~SymbolTable() {}
 
-    //SymbolTableI
-    Maybe<SymbolToken> get_symbol(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const;
-    Maybe<nodes::ValuePtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const;
-    Maybe<TablePtr> get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly = false) const;
-    bool add_symbol(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type);
-    bool add_value(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, nodes::ValuePtr value);
-    bool add_table(MessageContainer&, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table);
+    virtual Maybe<SymbolToken> get_symbol(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
+    virtual Maybe<nodes::ValuePtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
+    virtual Maybe<TablePtr> get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly = false) const = 0;
 
-    //CodeSectionI
-    bool analyze_code(nodes::Context& messages) const;
+    virtual const SymbolContainer& get_symbols() const = 0;
 
-    bool has_symbol(const nodes::QualIdent& ident) const { return symbols.contains(ident.ident); }
-
-    std::string to_string() const;
-private:
-    SymbolMap<SymbolToken> symbols;
-    SymbolMap<nodes::ValuePtr> values;
-    SymbolMap<TablePtr> tables;
-    nodes::StatementSequence body;
+    virtual std::string to_string() const = 0;
 };
+
+class CodeSection {
+public:
+    virtual bool analyze_code(MessageContainer& messages) const = 0;
+    virtual ~CodeSection() {}
+};
+
+struct SemanticUnit : public SymbolTable, public CodeSection {};

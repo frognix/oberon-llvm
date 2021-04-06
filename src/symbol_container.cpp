@@ -1,8 +1,8 @@
-#include "symbol_table.hpp"
+#include "symbol_container.hpp"
 #include "node.hpp"
 #include "procedure_table.hpp"
 
-bool SymbolTable::parse(SymbolTable& table, nodes::Context& context, const nodes::DeclarationSequence& seq, nodes::StatementSequence body, std::function<bool(nodes::IdentDef,nodes::Context&)> func)  {
+bool SymbolContainer::parse(SymbolContainer& table, nodes::Context& context, const nodes::DeclarationSequence& seq, nodes::StatementSequence body, std::function<bool(nodes::IdentDef,nodes::Context&)> func)  {
     table.body = body;
     for (auto& decl : seq.constDecls) {
         auto res = decl.expression.get(context);
@@ -63,7 +63,7 @@ bool SymbolTable::parse(SymbolTable& table, nodes::Context& context, const nodes
     return bsuccess;
 }
 
-bool SymbolTable::analyze_code(nodes::Context& context) const {
+bool SymbolContainer::analyze_code(nodes::Context& context) const {
     auto serror = false;
     for (auto& [name, table] : tables) {
         auto res = table->analyze_code(context.messages);
@@ -81,7 +81,7 @@ bool SymbolTable::analyze_code(nodes::Context& context) const {
     return bsuccess;
 }
 
-bool SymbolTable::add_symbol(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
+bool SymbolContainer::add_symbol(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type) {
     if (symbols.contains(ident.ident)) {
         auto symbol = symbols[ident.ident];
         messages.addErr(ident.ident.place, "Redefinition of symbol {}", ident.ident);
@@ -99,7 +99,7 @@ bool SymbolTable::add_symbol(MessageContainer& messages, nodes::IdentDef ident, 
     }
 }
 
-bool SymbolTable::add_value(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type,
+bool SymbolContainer::add_value(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type,
                              nodes::ValuePtr value) {
     if (auto res = add_symbol(messages, ident, group, type); !res) {
         return berror;
@@ -109,7 +109,7 @@ bool SymbolTable::add_value(MessageContainer& messages, nodes::IdentDef ident, S
     }
 }
 
-bool SymbolTable::add_table(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) {
+bool SymbolContainer::add_table(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) {
     if (auto tableRes = get_table(messages, nodes::QualIdent{{}, ident.ident}, true); tableRes)
         return tableRes.value()->overload(messages, table);
     if (auto res = add_symbol(messages, ident, group, type); !res) {
@@ -120,7 +120,7 @@ bool SymbolTable::add_table(MessageContainer& messages, nodes::IdentDef ident, S
     }
 }
 
-Maybe<SymbolToken> SymbolTable::get_symbol(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<SymbolToken> SymbolContainer::get_symbol(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
     if (ident.qual) {
         if (!secretly)
@@ -129,7 +129,7 @@ Maybe<SymbolToken> SymbolTable::get_symbol(MessageContainer& messages, const nod
     } else {
         if (auto res = symbols.find(ident.ident); res != symbols.end()) {
             if (!secretly)
-                const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
+                const_cast<SymbolContainer*>(this)->symbols[ident.ident].count++;
             return SymbolToken(res->second);
         } else {
             if (!secretly)
@@ -139,7 +139,7 @@ Maybe<SymbolToken> SymbolTable::get_symbol(MessageContainer& messages, const nod
     }
 }
 
-Maybe<nodes::ValuePtr> SymbolTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<nodes::ValuePtr> SymbolContainer::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
     if (ident.qual) {
         if (!secretly)
@@ -148,7 +148,7 @@ Maybe<nodes::ValuePtr> SymbolTable::get_value(MessageContainer& messages, const 
     } else {
         if (auto res = values.find(ident.ident); res != values.end()) {
             if (!secretly)
-                const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
+                const_cast<SymbolContainer*>(this)->symbols[ident.ident].count++;
             return nodes::ValuePtr(res->second);
         } else {
             if (!secretly)
@@ -158,7 +158,7 @@ Maybe<nodes::ValuePtr> SymbolTable::get_value(MessageContainer& messages, const 
     }
 }
 
-Maybe<TablePtr> SymbolTable::get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
+Maybe<TablePtr> SymbolContainer::get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
     if (ident.qual) {
         if (!secretly)
@@ -167,7 +167,7 @@ Maybe<TablePtr> SymbolTable::get_table(MessageContainer& messages, const nodes::
     } else {
         if (auto res = tables.find(ident.ident); res != tables.end()) {
             if (!secretly)
-                const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
+                const_cast<SymbolContainer*>(this)->symbols[ident.ident].count++;
             return TablePtr(res->second);
         } else {
             if (!secretly)
@@ -177,7 +177,7 @@ Maybe<TablePtr> SymbolTable::get_table(MessageContainer& messages, const nodes::
     }
 }
 
-std::string SymbolTable::to_string() const {
+std::string SymbolContainer::to_string() const {
     std::string result;
     result += fmt::format("Symbols ({}):\n", symbols.size());
     for (auto [name, symbol] : symbols) {

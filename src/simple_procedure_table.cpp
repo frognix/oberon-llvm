@@ -1,6 +1,6 @@
 #include "simple_procedure_table.hpp"
 
-std::unique_ptr<SimpleProcedureTable> SimpleProcedureTable::parse(const nodes::ProcedureDeclaration& proc, const nodes::ProcedureType& type, const SymbolTableI* parent, MessageContainer& messages) {
+std::unique_ptr<SimpleProcedureTable> SimpleProcedureTable::parse(const nodes::ProcedureDeclaration& proc, const nodes::ProcedureType& type, const SymbolTable* parent, MessageContainer& messages) {
     std::unique_ptr<SimpleProcedureTable> table(new SimpleProcedureTable());
     table->m_name = proc.name.ident;
     table->m_parent = parent;
@@ -17,11 +17,11 @@ std::unique_ptr<SimpleProcedureTable> SimpleProcedureTable::parse(const nodes::P
         }
         return true;
     };
-    SymbolTable::parse(table->symbols, context, proc.decls, proc.body, func);
+    SymbolContainer::parse(table->symbols, context, proc.decls, proc.body, func);
     return table;
 }
 
-bool SimpleProcedureTable::overload(MessageContainer& messages, std::shared_ptr<IProcedureTable>) {
+bool SimpleProcedureTable::overload(MessageContainer& messages, std::shared_ptr<ProcedureTable>) {
     messages.addErr(m_name.place, "Attempt to overoload procedure: {}", m_name);
     return false;
 }

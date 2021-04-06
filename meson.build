@@ -12,7 +12,7 @@ src = [
   './src/parser.cpp',
   './src/expression_nodes.cpp',
   './src/type_nodes.cpp',
-  './src/symbol_table.cpp',
+  './src/symbol_container.cpp',
   './src/procedure_table.cpp',
   './src/simple_procedure_table.cpp',
   './src/module_table.cpp',

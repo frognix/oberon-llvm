@@ -3,9 +3,9 @@
 #include "expression.hpp"
 #include "internal_error.hpp"
 #include "node_formatters.hpp"
-#include "symbol_table.hpp"
 #include "type.hpp"
 #include "type_nodes.hpp"
+#include "symbol_table.hpp"
 #include <string>
 #include <string_view>
 

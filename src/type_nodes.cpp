@@ -3,8 +3,8 @@
 #include "nodes.hpp"
 #include "parser_tools.hpp"
 #include "semantic_context.hpp"
-#include "symbol_table.hpp"
 #include "type_nodes.hpp"
+#include "symbol_table.hpp"
 
 #include <ranges>
 #include <algorithm>
