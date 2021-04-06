@@ -12,6 +12,9 @@ public:
     Maybe<SymbolToken> get_symbol_out(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
     virtual Maybe<SymbolToken> get_symbol(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
     virtual Maybe<nodes::ValuePtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const override;
+    Maybe<TablePtr> get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const override;
+
+    const SymbolTable& get_symbols() const override { return symbols; }
 
     virtual std::string to_string() const override;
     bool analyze_code(MessageContainer& messages) const override;

@@ -53,7 +53,7 @@ bool SymbolTable::parse(SymbolTable& table, nodes::Context& context, const nodes
         if (auto type = decl.type.normalize(context, false); !type) {
             return berror;
         } else {
-            auto res = ProcedureTable::parse(decl, *type.value()->is<typename nodes::ProcedureType>(), &context.symbols, context.messages);
+            auto res = build_procedure_table(decl, *type.value()->is<typename nodes::ProcedureType>(), &context.symbols, context.messages);
             if (!res.get()) return berror;
             if (!func(decl.name, context)) return berror;
             auto res1 = table.add_table(context.messages, decl.name, SymbolGroup::CONST, *type, TablePtr(res.release()));
@@ -110,6 +110,8 @@ bool SymbolTable::add_value(MessageContainer& messages, nodes::IdentDef ident, S
 }
 
 bool SymbolTable::add_table(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) {
+    if (auto tableRes = get_table(messages, nodes::QualIdent{{}, ident.ident}, true); tableRes)
+        return tableRes.value()->overload(messages, table);
     if (auto res = add_symbol(messages, ident, group, type); !res) {
         return berror;
     } else {
@@ -121,7 +123,8 @@ bool SymbolTable::add_table(MessageContainer& messages, nodes::IdentDef ident, S
 Maybe<SymbolToken> SymbolTable::get_symbol(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
     if (ident.qual) {
-        messages.addMessage(msg);
+        if (!secretly)
+            messages.addMessage(msg);
         return error;
     } else {
         if (auto res = symbols.find(ident.ident); res != symbols.end()) {
@@ -129,7 +132,8 @@ Maybe<SymbolToken> SymbolTable::get_symbol(MessageContainer& messages, const nod
                 const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return SymbolToken(res->second);
         } else {
-            messages.addMessage(msg);
+            if (!secretly)
+                messages.addMessage(msg);
             return error;
         }
     }
@@ -138,7 +142,8 @@ Maybe<SymbolToken> SymbolTable::get_symbol(MessageContainer& messages, const nod
 Maybe<nodes::ValuePtr> SymbolTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
     if (ident.qual) {
-        messages.addMessage(msg);
+        if (!secretly)
+            messages.addMessage(msg);
         return error;
     } else {
         if (auto res = values.find(ident.ident); res != values.end()) {
@@ -146,7 +151,27 @@ Maybe<nodes::ValuePtr> SymbolTable::get_value(MessageContainer& messages, const 
                 const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
             return nodes::ValuePtr(res->second);
         } else {
+            if (!secretly)
+                messages.addMessage(msg);
+            return error;
+        }
+    }
+}
+
+Maybe<TablePtr> SymbolTable::get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
+    auto msg = Message(MPriority::ERR, ident.ident.place, fmt::format("Symbol {} not found", ident));
+    if (ident.qual) {
+        if (!secretly)
             messages.addMessage(msg);
+        return error;
+    } else {
+        if (auto res = tables.find(ident.ident); res != tables.end()) {
+            if (!secretly)
+                const_cast<SymbolTable*>(this)->symbols[ident.ident].count++;
+            return TablePtr(res->second);
+        } else {
+            if (!secretly)
+                messages.addMessage(msg);
             return error;
         }
     }

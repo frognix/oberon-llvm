@@ -25,12 +25,21 @@ struct hash<nodes::QualIdent> {
 
 } // namespace std
 
+class IProcedureTable;
+
+using TablePtr = std::shared_ptr<IProcedureTable>;
+
+class SymbolTable;
+
 class SymbolTableI {
 public:
     virtual ~SymbolTableI() {}
 
     virtual Maybe<SymbolToken> get_symbol(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
     virtual Maybe<nodes::ValuePtr> get_value(MessageContainer&, const nodes::QualIdent& ident, bool secretly = false) const = 0;
+    virtual Maybe<TablePtr> get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly = false) const = 0;
+
+    virtual const SymbolTable& get_symbols() const = 0;
 
     virtual std::string to_string() const = 0;
 };

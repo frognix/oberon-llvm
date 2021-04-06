@@ -12,7 +12,8 @@ std::unique_ptr<ModuleTable> ModuleTable::parse(const nodes::Module& module, std
         if (ident.def) table->add_export(ident.ident);
         return true;
     };
-    SymbolTable::parse(table->symbols, context, module.declarations, module.body, func);
+    auto parseRes = SymbolTable::parse(table->symbols, context, module.declarations, module.body, func);
+    if (!parseRes) return nullptr;
     return table;
 }
 
@@ -90,6 +91,20 @@ Maybe<SymbolToken> ModuleTable::get_symbol(MessageContainer& messages, const nod
 Maybe<nodes::ValuePtr> ModuleTable::get_value(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
     if (!ident.qual) {
         return symbols.get_value(messages, ident, secretly);
+    } else {
+        if (auto res = m_imports.find(*ident.qual); res != m_imports.end()) {
+            messages.addErr(ident.ident.place, "Attempting to access outer value {}", ident);
+            return error;
+        } else {
+            messages.addErr(m_name.place, "Import '{}' does not exist", res->second.name);
+            return error;
+        }
+    }
+}
+
+Maybe<TablePtr> ModuleTable::get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const {
+    if (!ident.qual) {
+        return symbols.get_table(messages, ident, secretly);
     } else {
         if (auto res = m_imports.find(*ident.qual); res != m_imports.end()) {
             messages.addErr(ident.ident.place, "Attempting to access outer value {}", ident);

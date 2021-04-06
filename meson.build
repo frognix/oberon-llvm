@@ -14,6 +14,7 @@ src = [
   './src/type_nodes.cpp',
   './src/symbol_table.cpp',
   './src/procedure_table.cpp',
+  './src/simple_procedure_table.cpp',
   './src/module_table.cpp',
   './src/statement_nodes.cpp',
   './src/section_nodes.cpp',
