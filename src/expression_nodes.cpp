@@ -3,9 +3,11 @@
 #include "expression.hpp"
 #include "internal_error.hpp"
 #include "node_formatters.hpp"
+#include "symbol_token.hpp"
 #include "type.hpp"
 #include "type_nodes.hpp"
 #include "symbol_table.hpp"
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -398,9 +400,9 @@ bool nodes::proccall_repair(ProcCallData& value, Context& context) {
     if (!value.ident.repair(context))
         return berror;
     auto& ident = value.ident.get_mut();
-    if (ident.selector.size() > 0 && !value.params) {
+    if (ident.selector.size() > 0 && !value.params && !value.commonParams) {
         auto back_selecter = ident.selector.back();
-        if (!value.params && std::holds_alternative<QualIdent>(back_selecter)) {
+        if (std::holds_alternative<QualIdent>(back_selecter)) {
             auto desigRep = DesignatorRepairer(std::get<QualIdent>(back_selecter), std::vector<Selector>{});
             if (!desigRep.repair(context))
                 return berror;
@@ -410,7 +412,9 @@ bool nodes::proccall_repair(ProcCallData& value, Context& context) {
                 return bsuccess;
             } else {
                 ident.selector.pop_back();
-                value.params = {make_expression<ProcCall>(desig, std::optional<ExpList>{})};
+                auto expr = make_expression<ProcCall>(std::nullopt, desig, std::nullopt);
+                expr->place = desig.ident.ident.place;
+                value.params = {expr};
             }
         }
     }
@@ -418,47 +422,81 @@ bool nodes::proccall_repair(ProcCallData& value, Context& context) {
 }
 
 std::string ProcCall::to_string() const {
+    auto commonParams = data.unsafe_get().commonParams;
     auto params = data.unsafe_get().params;
     auto ident = data.unsafe_get().ident.unsafe_get();
-    if (data.unsafe_get().params)
-        return fmt::format("{}({})", ident.to_string(), fmt::join(*params, ", "));
-    else
-        return fmt::format("{}", ident.to_string());
+    if (commonParams) {
+        if (params) {
+            return fmt::format("{{}}.{}({})", *commonParams, ident.to_string(), fmt::join(*params, ", "));
+        } else {
+            return fmt::format("{{}}.{}", *commonParams, ident.to_string());
+        }
+    } else {
+        if (params) {
+            return fmt::format("{}({})", ident.to_string(), fmt::join(*params, ", "));
+        } else {
+            return fmt::format("{}", ident.to_string());
+        }
+    }
 }
 
 Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_info(Context& context) const {
     if (!data.repair(context)) return error;
     auto ident = data.get().ident.get();
     auto params = data.get().params;
+    auto commonParams = data.get().commonParams;
     auto symbolRes = ident.get_symbol(context, place);
     if (!symbolRes)
         return error;
     auto symbol = *symbolRes;
-    if (!params) return std::pair(symbol.group, symbol.type);
+    if (!params && !commonParams) return std::pair(symbol.group, symbol.type);
 
     auto funcType = dynamic_cast<ProcedureType*>(symbol.type.get());
     if (!funcType) {
         context.messages.addErr(place, "Expected procedure type, found {}", symbol.type.get()->to_string());
         return error;
     }
-    if (params->size() != funcType->params.params.size()) {
-        context.messages.addErr(place, "Expected {} parameters, found {}", funcType->params.params.size(), params->size());
+    if (params && params->size() != funcType->params.formal.size()) {
+        context.messages.addErr(place, "Expected {} formal parameters, found {}", funcType->params.formal.size(), params->size());
+        return error;
+    }
+    if (commonParams && commonParams->size() != funcType->params.common.size()) {
+        context.messages.addErr(place, "Expected {} common parameters, found {}", funcType->params.common.size(), commonParams->size());
         return error;
     }
     auto compatible_types = true;
-    for (size_t i = 0; i < funcType->params.params.size(); i++) {
-        auto var = funcType->params.params[i];
-        auto expr = (*params)[i];
-        auto exprRes = expr->get_type(context);
-        if (!exprRes) return error;
-        auto [group, exprType] = *exprRes;
-        if (var.var && group != SymbolGroup::VAR) {
-            context.messages.addErr(expr->place, "Expected variable");
-            compatible_types = false;
+    if (params) {
+        for (size_t i = 0; i < funcType->params.formal.size(); ++i) {
+            auto var = funcType->params.formal[i];
+            auto expr = (*params)[i];
+            auto exprRes = expr->get_type(context);
+            if (!exprRes) return error;
+            auto [group, exprType] = *exprRes;
+            if (var.var && group != SymbolGroup::VAR) {
+                context.messages.addErr(expr->place, "Expected variable");
+                compatible_types = false;
+            }
+            if (!var.type->assignment_compatible(context, *exprType) && !ArrayType::compatible(context, *exprType, *var.type)) {
+                context.messages.addErr(place, "Can't match actual and formal parameter: {} and {}", exprType->to_string(), var.type->to_string());
+                compatible_types = false;
+            }
         }
-        if (!var.type->assignment_compatible(context, *exprType) && !ArrayType::compatible(context, *exprType, *var.type)) {
-            context.messages.addErr(place, "Can't match actual and formal parameter: {} and {}", exprType->to_string(), var.type->to_string());
-            compatible_types = false;
+    }
+    if (commonParams) {
+        for (size_t i = 0; i < funcType->params.common.size(); ++i) {
+            auto var = funcType->params.common[i];
+            auto value = (*commonParams)[i];
+            auto valueSymbol = context.symbols.get_symbol(context.messages, value);
+            if (!valueSymbol) return error;
+            auto valueType = valueSymbol.value().type;
+            if (var.var && valueSymbol->group != SymbolGroup::VAR) {
+                context.messages.addErr(value.ident.place, "Expected variable");
+                compatible_types = false;
+            }
+            if (!var.type->assignment_compatible(context, *valueType) && !ArrayType::compatible(context, *valueType, *var.type)) {
+                context.messages.addErr(place, "Can't match actual and common parameter: {} and {}", valueType->to_string(), var.type->to_string());
+                compatible_types = false;
+            }
         }
     }
     if (!compatible_types) {
@@ -486,7 +524,7 @@ Maybe<ValuePtr> ProcCall::eval_constant(Context& context) const {
     if (!data.repair(context))
         return error;
     auto ident = data.get().ident.get();
-    if (!data.get().params && ident.selector.size() == 0) {
+    if (!data.get().commonParams && !data.get().params && ident.selector.size() == 0) {
         return context.symbols.get_value(context.messages, ident.ident);
     }
     context.messages.addErr(place, "Selection sequence cannot be constant: {}", this->to_string());

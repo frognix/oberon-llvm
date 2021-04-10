@@ -354,10 +354,17 @@ struct fmt::formatter<nodes::FormalParameters> {
     }
     template <typename FormatContext>
     auto format(nodes::FormalParameters const& id, FormatContext& ctx) {
-        if (id.rettype)
-            return fmt::format_to(ctx.out(), "({}) : {}", fmt::join(id.params, "; "), *id.rettype);
-        else
-            return fmt::format_to(ctx.out(), "({})", fmt::join(id.params, "; "));
+        if (id.common.size() == 0) {
+            if (id.rettype)
+                return fmt::format_to(ctx.out(), "({}) : {}", fmt::join(id.formal, "; "), *id.rettype);
+            else
+                return fmt::format_to(ctx.out(), "({})", fmt::join(id.formal, "; "));
+        } else {
+            if (id.rettype)
+                return fmt::format_to(ctx.out(), "{{{}}} ({}) : {}", fmt::join(id.common, "; "), fmt::join(id.formal, "; "), *id.rettype);
+            else
+                return fmt::format_to(ctx.out(), "{{{}}} ({})", fmt::join(id.common, "; "), fmt::join(id.formal, "; "));
+        }
     }
 };
 

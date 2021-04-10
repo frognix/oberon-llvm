@@ -8,7 +8,7 @@ struct Type : Node {
     virtual Maybe<TypePtr> normalize(Context&, bool normalize_pointers) const = 0;
     virtual bool same(Context& context, const Type& other) const = 0;
     virtual bool equal(Context& context, const Type& other) const = 0;
-    virtual bool assignment_compatible(Context& context, const Type& expr) = 0;
+    virtual bool assignment_compatible(Context& context, const Type& expr) const = 0;
     virtual ~Type() = default;
 };
 

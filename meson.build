@@ -21,7 +21,8 @@ src = [
   './src/module_loader.cpp',
   './src/io_manager.cpp',
   './src/file_manager.cpp',
-  './src/message_container.cpp'
+  './src/message_container.cpp',
+  './src/multimethod_table.cpp'
 ]
 
 # fmt_dep = dependency('fmt')

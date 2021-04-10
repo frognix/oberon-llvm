@@ -15,6 +15,7 @@ public:
     Maybe<TablePtr> get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly) const override;
 
     const SymbolContainer& get_symbols() const override { return symbols; }
+    SymbolContainer& get_symbols() override { return symbols; }
 
     virtual std::string to_string() const override;
     bool analyze_code(MessageContainer& messages) const override;

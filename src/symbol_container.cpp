@@ -49,11 +49,12 @@ bool SymbolContainer::parse(SymbolContainer& table, nodes::Context& context, con
         }
     }
     for (auto& _decl : seq.procedureDecls) {
-        auto& decl = *dynamic_cast<nodes::ProcedureDeclaration*>(_decl.get());
+        auto decl = *dynamic_cast<nodes::ProcedureDeclaration*>(_decl.get());
         if (auto type = decl.type.normalize(context, false); !type) {
             return berror;
         } else {
-            auto res = build_procedure_table(decl, *type.value()->is<typename nodes::ProcedureType>(), &context.symbols, context.messages);
+            decl.type = *type.value()->is<nodes::ProcedureType>();
+            auto res = build_procedure_table(decl, &context.symbols, context.messages);
             if (!res.get()) return berror;
             if (!func(decl.name, context)) return berror;
             auto res1 = table.add_table(context.messages, decl.name, SymbolGroup::CONST, *type, TablePtr(res.release()));
@@ -73,10 +74,10 @@ bool SymbolContainer::analyze_code(nodes::Context& context) const {
         auto res = statement->check(context);
         if (!res) serror = true;
     }
-    for (auto [name, symbol] : symbols) {
-        if (symbol.count == 0)
-            context.messages.addFormat(MPriority::W4, symbol.name.ident.place, "Unused symbol: {}", symbol.name);
-    }
+    // for (auto [name, symbol] : symbols) {
+    //     if (symbol.count == 0)
+    //         context.messages.addFormat(MPriority::W4, symbol.name.ident.place, "Unused symbol: {}", symbol.name);
+    // }
     if (serror) return berror;
     return bsuccess;
 }
@@ -110,8 +111,17 @@ bool SymbolContainer::add_value(MessageContainer& messages, nodes::IdentDef iden
 }
 
 bool SymbolContainer::add_table(MessageContainer& messages, nodes::IdentDef ident, SymbolGroup group, nodes::TypePtr type, TablePtr table) {
-    if (auto tableRes = get_table(messages, nodes::QualIdent{{}, ident.ident}, true); tableRes)
+    if (auto tableRes = get_table(messages, nodes::QualIdent{{}, ident.ident}, true); tableRes) {
+        if (tableRes.value()->can_overload(messages, *table)) {
+            if (&tableRes.value()->parent().get_symbols() == this) {
+                return tableRes.value()->overload(messages, table);
+            } else {
+                tables[ident.ident] = std::move(table);
+                return bsuccess;
+            }
+        }
         return tableRes.value()->overload(messages, table);
+    }
     if (auto res = add_symbol(messages, ident, group, type); !res) {
         return berror;
     } else {

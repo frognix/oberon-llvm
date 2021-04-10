@@ -5,6 +5,7 @@
 #include "type_nodes.hpp"
 #include "statement.hpp"
 #include "const_value.hpp"
+#include <string_view>
 
 namespace nodes {
 
@@ -32,17 +33,24 @@ struct DeclarationSequence {
     std::vector<SectionPtr> procedureDecls;
 };
 
+struct ProcedureDeclarationBody {
+    DeclarationSequence decls;
+    StatementSequence statements;
+    std::optional<ExpressionPtr> ret;
+};
+
 struct ProcedureDeclaration : Section {
     std::string to_string() const override;
     ProcedureDeclaration() {}
-    ProcedureDeclaration(IdentDef n, ProcedureType t, DeclarationSequence d, StatementSequence b,
-                         std::optional<ExpressionPtr> r)
-        : name(n), type(t), decls(d), body(b), ret(r) {}
+    ProcedureDeclaration(IdentDef n, ProcedureType t, std::variant<std::string_view, ProcedureDeclarationBody> var)
+        : name(n), type(t) {
+        if (var.index() == 1) {
+            body = std::get<1>(var);
+        }
+    }
     IdentDef name;
     ProcedureType type;
-    DeclarationSequence decls;
-    StatementSequence body;
-    std::optional<ExpressionPtr> ret;
+    std::optional<ProcedureDeclarationBody> body;
 };
 
 struct Import {

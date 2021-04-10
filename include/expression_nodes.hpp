@@ -92,6 +92,7 @@ struct Set : Expression {
 };
 
 struct ProcCallData {
+    std::optional<std::vector<QualIdent>> commonParams;
     DesignatorRepairer ident;
     std::optional<ExpList> params;
 };
@@ -105,7 +106,7 @@ struct ProcCall : Expression {
     Maybe<std::pair<SymbolGroup, TypePtr>> get_info(Context& table) const;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
-    ProcCall(DesignatorRepairer i, std::optional<ExpList> e) : data(i, e) {}
+    ProcCall(std::optional<std::vector<QualIdent>> c, DesignatorRepairer i, std::optional<ExpList> e) : data(c, i, e) {}
     ProcCallDataRepairer data;
 };
 

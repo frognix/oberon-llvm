@@ -4,13 +4,17 @@
 using namespace nodes;
 
 std::string ProcedureDeclaration::to_string() const {
-    std::string statements;
-    if (!body.empty())
-        statements = fmt::format("BEGIN\n{}\n", body);
-    std::string ret_str;
-    if (ret)
-        ret_str = fmt::format("RETURN {}\n", *ret);
-    return fmt::format("PROCEDURE {} {};\n{}{}{}END {}", name, type.params, decls, statements, ret_str, name);
+    if (body) {
+        std::string statements;
+        if (!body->statements.empty())
+            statements = fmt::format("BEGIN\n{}\n", body->statements);
+        std::string ret_str;
+        if (body->ret)
+            ret_str = fmt::format("RETURN {}\n", *body->ret);
+        return fmt::format("PROCEDURE {} {};\n{}{}{}END {}", name, type.params, body->decls, statements, ret_str, name);
+    } else {
+        return fmt::format("PROCEDURE {} {} := 0", name, type.params);
+    }
 }
 
 Import::Import(Ident first, std::optional<Ident> second) : name(first) {

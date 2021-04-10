@@ -40,6 +40,7 @@ public:
     virtual Maybe<TablePtr> get_table(MessageContainer& messages, const nodes::QualIdent& ident, bool secretly = false) const = 0;
 
     virtual const SymbolContainer& get_symbols() const = 0;
+    virtual SymbolContainer& get_symbols() = 0;
 
     virtual std::string to_string() const = 0;
 };

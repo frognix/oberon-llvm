@@ -74,7 +74,7 @@ bool BuiltInType::equal(Context& context, const Type& other) const {
     return same(context, other);
 }
 
-bool BuiltInType::assignment_compatible(Context& context, const Type& expr) {
+bool BuiltInType::assignment_compatible(Context& context, const Type& expr) const {
     if (same(context, expr)) return true;
     if (auto expr_string = expr.is<ConstStringType>(); expr_string && expr_string->size == 1)
         return true;
@@ -123,7 +123,7 @@ bool TypeName::equal(Context& context, const Type& other) const {
     return same(context, other);
 }
 
-bool TypeName::assignment_compatible(Context& context, const Type& expr) {
+bool TypeName::assignment_compatible(Context& context, const Type& expr) const {
     auto this_type = dereference(context);
     if (!this_type) return berror;
     const Type* expr_type = &expr;
@@ -155,7 +155,7 @@ bool ImportTypeName::equal(Context& context, const Type& other) const {
     return same(context, other);
 }
 
-bool ImportTypeName::assignment_compatible(Context& context, const Type& expr) {
+bool ImportTypeName::assignment_compatible(Context& context, const Type& expr) const {
     return equal(context, expr);
 }
 
@@ -225,7 +225,7 @@ bool RecordType::equal(Context& context, const Type& other) const {
     return same(context, other);
 }
 
-bool RecordType::assignment_compatible(Context& context, const Type& expr) {
+bool RecordType::assignment_compatible(Context& context, const Type& expr) const {
     if (auto expr_record = expr.is<RecordType>(); expr_record) {
         return expr_record->extends(context, *this);
     }
@@ -275,7 +275,7 @@ bool PointerType::equal(Context& context, const Type& other) const {
     return same(context, other);
 }
 
-bool PointerType::assignment_compatible(Context& context, const Type& expr) {
+bool PointerType::assignment_compatible(Context& context, const Type& expr) const {
     if (auto expr_pointer = expr.is<PointerType>(); expr_pointer) {
         auto& expr_type = expr_pointer->get_type(context);
         return expr_type.extends(context, get_type(context));
@@ -303,7 +303,7 @@ bool ConstStringType::equal(Context& context, const Type& other) const {
     return same(context, other);
 }
 
-bool ConstStringType::assignment_compatible(Context&, const Type&) {
+bool ConstStringType::assignment_compatible(Context&, const Type&) const {
     return false;
 }
 
@@ -350,7 +350,7 @@ bool ArrayType::equal(Context& context, const Type& other) const {
     return false;
 }
 
-bool ArrayType::assignment_compatible(Context& context, const Type& expr) {
+bool ArrayType::assignment_compatible(Context& context, const Type& expr) const {
     if (auto expr_string = expr.is<ConstStringType>(); expr_string) {
         auto array_type = type->is<BuiltInType>();
         auto maybe_size = length.get(context);
@@ -404,16 +404,28 @@ ArrayType::ArrayType(std::vector<ExpressionPtr> l, TypePtr t, bool u) : open_arr
     }
 }
 
-//! Matching formal parameters lists http://miasap.se/obnc/type-compatibility.html
-bool FormalParameters::match(Context& context, const FormalParameters& other) const {
-    if (params.size() != other.params.size()) return false;
-    if (!rettype == !other.rettype) return false;
-    if (rettype && !rettype.value()->same(context, **other.rettype)) return false;
-    for (size_t i = 0; i < params.size(); ++i) {
-        if (params[i].var != other.params[i].var) return false;
-        if (!params[i].type->equal(context, *other.params[i].type)) return false;
+bool match_params_lists(Context& context, const std::vector<FormalParameter>& first, const std::vector<FormalParameter>& second) {
+    if (first.size() != second.size()) return false;
+    if (first.size() == 0 && second.size() == 0) return true;
+    for (size_t i = 0; i < first.size(); ++i) {
+        if (first[i].var != second[i].var) return false;
+        if (!first[i].type->equal(context, *second[i].type)) return false;
     }
     return true;
+}
+
+//! Matching formal parameters lists http://miasap.se/obnc/type-compatibility.html
+bool FormalParameters::match(Context& context, const FormalParameters& other, bool match_first, bool match_second) const {
+    bool res = true;
+    if (!rettype != !other.rettype) return false;
+    if (rettype && !rettype.value()->same(context, **other.rettype)) return false;
+    if (match_first) {
+        res = res && match_params_lists(context, common, other.common);
+    }
+    if (match_second) {
+        res = res && match_params_lists(context, formal, other.formal);
+    }
+    return res;
 }
 
 std::string ProcedureType::to_string() const {
@@ -421,14 +433,33 @@ std::string ProcedureType::to_string() const {
 }
 
 Maybe<TypePtr> ProcedureType::normalize(Context& context, bool normalize_pointers) const {
-    ProcedureType copy = *this;
-    for (auto& section : copy.params.params) {
-        auto res = section.type->normalize(context, normalize_pointers);
-        if (!res)
-            return error;
-        section.type = *res;
+    ProcedureType type = *this;
+    if (type.params.rettype) {
+        auto new_ret_type = type.params.rettype.value()->normalize(context, normalize_pointers);
+        if (!new_ret_type) return error;
+        type.params.rettype = new_ret_type;
     }
-    return make_type<ProcedureType>(copy);
+    for (auto& section : type.params.common) {
+        if (auto type = section.type->normalize(context, normalize_pointers); type) {
+            section.type = type.value();
+            // auto group = section.var ? SymbolGroup::VAR : SymbolGroup::CONST;
+            // auto res = table.get_symbols().add_symbol(messages, nodes::IdentDef{section.ident, false}, group, type.value());
+            // if (!res) return error;
+        } else {
+            return error;
+        }
+    }
+    for (auto& section : type.params.formal) {
+        if (auto type = section.type->normalize(context, normalize_pointers); type) {
+            section.type = type.value();
+            // auto group = section.var ? SymbolGroup::VAR : SymbolGroup::CONST;
+            // auto res = table.get_symbols().add_symbol(messages, nodes::IdentDef{section.ident, false}, group, type.value());
+            // if (!res) return error;
+        } else {
+            return error;
+        }
+    }
+    return make_type<ProcedureType>(type);
 }
 
 bool ProcedureType::same(Context& context, const Type& other) const {
@@ -438,7 +469,7 @@ bool ProcedureType::same(Context& context, const Type& other) const {
 
 bool ProcedureType::equal(Context& context, const Type& other) const {
     if (auto other_procedure = other.is<ProcedureType>(); other_procedure) {
-        return params.match(context, other_procedure->params);
+        return params.match(context, other_procedure->params, true, true);
     } else if (auto other_name = other.is<TypeName>(); other_name) {
         auto other_type = other_name->dereference(context);
         if (!other_type) return berror;
@@ -447,9 +478,9 @@ bool ProcedureType::equal(Context& context, const Type& other) const {
     return false;
 }
 
-bool ProcedureType::assignment_compatible(Context& context, const Type& expr) {
+bool ProcedureType::assignment_compatible(Context& context, const Type& expr) const {
     if (auto expr_procedure = expr.is<ProcedureType>(); expr_procedure) {
-        return params.match(context, expr_procedure->params);
+        return params.match(context, expr_procedure->params, true, true);
     } else if (auto expr_base = expr.is<BuiltInType>(); expr_base && expr_base->type == BaseType::NIL) {
         return true;
     }
@@ -462,8 +493,8 @@ ProcedureType::ProcedureType(std::optional<FormalParameters> par) {
 }
 
 std::string CommonType::to_string() const {
-    return fmt::format("COMMON {} OF {}{} END",
-                       common_feature_type.to_string(), fmt::join(pair_list, " | "),
+    return fmt::format("CASE {} OF {}{} END",
+                       common_feature_type ? common_feature_type->to_string() : "", fmt::join(pair_list, " | "),
                        else_clause ? fmt::format(" ELSE {}", else_clause.value()->to_string()) : "");
 }
 
@@ -504,16 +535,30 @@ bool CommonType::same(Context& context, const Type& other) const {
 }
 
 bool CommonType::equal(Context& context, const Type& other) const {
+    if (auto scalar_other = other.is<ScalarType>(); scalar_other) {
+        return equal(context, *scalar_other->type);
+    }
     return same(context, other);
 }
 
 //! \todo Не совсем понятно что тут должно быть
-bool CommonType::assignment_compatible(Context& context, const Type& expr) {
-    return same(context, expr);
+bool CommonType::assignment_compatible(Context& context, const Type& expr) const {
+    if (same(context, expr)) return true;
+    if (auto scalar_expr = expr.is<ScalarType>(); scalar_expr) {
+        return same(context, *scalar_expr->type);
+    } else {
+        return std::ranges::any_of(pair_list, [&expr, &context](auto p){ return p.type->assignment_compatible(context, expr); });
+    }
 }
 
 bool CommonType::has_case(CommonFeature feature) const {
     return std::ranges::find_if(pair_list, [feature](auto p){return p.feature == feature;}) != pair_list.end();
+}
+
+const Type& CommonType::get_case(CommonFeature feature) const {
+    auto _case = std::ranges::find_if(pair_list, [feature](auto p){return p.feature == feature;});
+    if (_case == pair_list.end()) internal::compiler_error(__FUNCTION__);
+    return *_case->type;
 }
 
 std::string ScalarType::to_string() const {
@@ -536,6 +581,22 @@ Maybe<TypePtr> ScalarType::normalize(Context& context, bool normalize_pointers) 
     return make_type<ScalarType>(copy);
 }
 
-bool ScalarType::same(Context& context, const Type& other) const {}
-bool ScalarType::equal(Context& context, const Type& other) const {}
-bool ScalarType::assignment_compatible(Context& context, const Type& expr) {}
+bool ScalarType::same(Context& context, const Type& other) const {
+    if (other.is<TypeName>()) return other.same(context, *this);
+    return this == &other;
+}
+
+bool ScalarType::equal(Context& context, const Type& other) const {
+    if (auto scalar_other = other.is<ScalarType>(); scalar_other) {
+        return type->same(context, *scalar_other->type) && feature == scalar_other->feature;
+    }
+    return same(context, other);
+}
+
+bool ScalarType::assignment_compatible(Context& context, const Type& expr) const {
+    if (auto common_this = type->is<CommonType>(); common_this) {
+        return common_this->get_case(feature).assignment_compatible(context, expr);
+    } else {
+        internal::compiler_error(__FUNCTION__);
+    }
+}
