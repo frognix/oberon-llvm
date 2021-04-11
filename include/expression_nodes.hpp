@@ -4,7 +4,7 @@
 #include "parser_tools.hpp"
 #include "statement.hpp"
 #include <variant>
-#include <set>
+#include <bitset>
 
 struct SymbolToken;
 
@@ -75,8 +75,10 @@ struct ConstSet : Value {
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
-    ConstSet(std::set<Integer> s) : values(s) {};
-    std::set<Integer> values;
+    ConstSet(std::bitset<64> s) : values(s) {};
+
+    using SetType = std::bitset<64>;
+    SetType values;
 };
 
 enum class BPType {

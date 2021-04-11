@@ -72,7 +72,7 @@ Maybe<ValuePtr> ConstInteger::apply_operator(Context& context, OpType oper, cons
         return make_value<ConstInteger>(result);
     } else if (auto pset = other.is<ConstSet>(); pset) {
         if (oper != OP_IN) return incompatible_types(context, oper, *this, other);
-        return make_value<Boolean>(pset->values.contains(value));
+        return make_value<Boolean>(pset->values.test(value));
     } else {
         return incompatible_types(context, oper, *this, other);
     }
@@ -212,7 +212,11 @@ Maybe<ValuePtr> Boolean::apply_operator(Context& context, OpType oper, const Val
 }
 
 std::string ConstSet::to_string() const {
-    return fmt::format("{{{}}}", fmt::join(values, ", "));
+    std::vector<uint> set_values;
+    for (uint i = 0; i < values.size(); ++i) {
+        if (values.test(i)) set_values.push_back(i);
+    }
+    return fmt::format("{{{}}}", fmt::join(set_values, ", "));
 }
 
 Maybe<std::pair<SymbolGroup, TypePtr>> ConstSet::get_type(Context&) const {
@@ -234,24 +238,12 @@ Maybe<ValuePtr> ConstSet::apply_operator(Context& context, OpType oper, const Va
             }
             return make_value<Boolean>(result);
         } else {
-             std::set<Integer> result;
+            ConstSet::SetType result = values;
              switch (oper) {
-                 case OP_ADD:  std::set_union(values.begin(), values.end(),
-                                              pset->values.begin(), pset->values.end(),
-                                              std::inserter(result, result.begin()));
-                 break;
-                 case OP_SUB:  std::set_difference(values.begin(), values.end(),
-                                                   pset->values.begin(), pset->values.end(),
-                                                   std::inserter(result, result.begin()));
-                 break;
-                 case OP_MUL:  std::set_intersection(values.begin(), values.end(),
-                                                     pset->values.begin(), pset->values.end(),
-                                                     std::inserter(result, result.begin()));
-                 break;
-                 case OP_RDIV: std::set_symmetric_difference(values.begin(), values.end(),
-                                                             pset->values.begin(), pset->values.end(),
-                                                             std::inserter(result, result.begin()));
-                 break;
+                 case OP_ADD:  result |= pset->values; break;
+                 case OP_SUB:  result |= ~pset->values; break;
+                 case OP_MUL:  result &= pset->values; break;
+                 case OP_RDIV: result ^= pset->values; break;
                  default: return incompatible_types(context, oper, *this, other);
              }
              return make_value<ConstSet>(result);
@@ -459,7 +451,6 @@ Maybe<ValuePtr> BaseProcedure::eval_constant(Context& context) const {
     auto type = get_type(context);
     if (!type) return error;
     auto first_integer = params_values[0]->is<ConstInteger>();
-    auto second_integer = params_values[0]->is<ConstInteger>();
     if (name == BPType::ABS) {
         if (first_integer) return make_value<ConstInteger>(std::abs(first_integer->value));
         auto first_real = params_values[0]->is<ConstReal>();
@@ -469,17 +460,6 @@ Maybe<ValuePtr> BaseProcedure::eval_constant(Context& context) const {
     } else if (name == BPType::LEN) {
         auto first_string = params_values[0]->is<String>();
         if (first_string) return make_value<ConstInteger>(first_string->value.size());
-    } else if (name == BPType::LSL && first_integer && second_integer) {
-        return make_value<ConstInteger>(first_integer->value * std::pow(2, second_integer->value));
-    } else if (name == BPType::ASR && first_integer && second_integer) {
-        auto rotr32 = [](uint n, int c) -> uint32_t {
-            const uint mask = (8*sizeof(n) - 1);
-            c &= mask;
-            return (n>>c) | (n<<( (-c)&mask ));
-        };
-        uint abs = std::abs(first_integer->value);
-        int sign = first_integer->value / abs;
-        return make_value<ConstInteger>(sign*rotr32(abs, second_integer->value));
     } else if (name == BPType::FLOOR) {
         auto first_real = params_values[0]->is<ConstReal>();
         return make_value<ConstInteger>(std::floor(first_real->value));
@@ -491,17 +471,35 @@ Maybe<ValuePtr> BaseProcedure::eval_constant(Context& context) const {
         auto first_bool = params_values[0]->is<Boolean>();
         if (first_bool) return make_value<ConstInteger>(first_bool->value);
         auto first_set = params_values[0]->is<ConstSet>();
-        // if (first_set) return make_value<ConstInteger>(first_set->value); //Как это? (Переделать ConstSet)
+        if (first_set) return make_value<ConstInteger>(first_set->values.to_ulong());
     } else if (name == BPType::CHR) {
         if (first_integer->value > 255 || first_integer->value < 0) {
             context.messages.addErr(place, "Expected integer >= 0 and < 256");
             return error;
         }
         return make_value<Char>(first_integer->value);
-    } else {
-        context.messages.addErr(place, "This built-in function is incalculable in a constant expression");
-        return error;
     }
+
+    if (params_values.size() == 2) {
+        auto second_integer = params_values[1]->is<ConstInteger>();
+        if (name == BPType::LSL && first_integer && second_integer) {
+            return make_value<ConstInteger>(first_integer->value * std::pow(2, second_integer->value));
+        } else if (name == BPType::ASR && first_integer && second_integer) {
+            return make_value<ConstInteger>(first_integer->value / std::pow(2, second_integer->value));
+        } else if (name == BPType::ROR && first_integer && second_integer) {
+            auto rotr32 = [](uint n, int c) -> uint32_t {
+                const uint mask = (8*sizeof(n) - 1);
+                c &= mask;
+                return (n>>c) | (n<<( (-c)&mask ));
+            };
+            uint abs = std::abs(first_integer->value);
+            int sign = first_integer->value / abs;
+            return make_value<ConstInteger>(sign*rotr32(abs, second_integer->value));
+        }
+    }
+
+    context.messages.addErr(place, "This built-in function is incalculable in a constant expression");
+    return error;
     internal::compiler_error(__FUNCTION__);
 }
 
@@ -533,18 +531,26 @@ inline Maybe<ConstInteger> check_value(Context& context, const Expression& expr)
 }
 
 Maybe<ValuePtr> Set::eval_constant(Context& context) const {
-    std::set<Integer> set;
+    ConstSet::SetType set;
     for (auto elem : value) {
         auto first_int = check_value(context, *elem.first);
         if (!first_int) return error;
+        if (first_int->value < 0 || first_int->value > 63) {
+            context.messages.addErr(place, "Expected x >= 0 && x < 64, found: {}", first_int->value);
+            return error;
+        }
         if (elem.second) {
             auto second_int = check_value(context, *elem.second.value());
+            if (second_int->value < 0 || second_int->value > 63) {
+                context.messages.addErr(place, "Expected x >= 0 && x < 64, found: {}", first_int->value);
+                return error;
+            }
             if (!second_int) return error;
             for (Integer i = first_int->value; i <= second_int->value; ++i) {
-                set.insert(i);
+                set.set(i);
             }
         } else {
-            set.insert(first_int->value);
+            set.set(first_int->value);
         }
     }
     return make_value<ConstSet>(set);
