@@ -281,7 +281,7 @@ auto type_parser(ParserPtr<ExpressionPtr> expression, ParserPtr<CommonFeature> c
         syntax_sequence(many(syntax_sequence(keyword("ARRAY"), keyword("OF"))), typeName), [](const auto& data) {
             auto [array, typeName] = data;
             if (array.size() > 0) {
-                std::vector<ExpressionPtr> vec(array.size(), make_expression<ConstInteger>(1));
+                std::vector<ExpressionPtr> vec(array.size(), make_expression<IntegerValue>(1));
                 return make_type<ArrayType>(vec, typeName, true);
             } else
                 return typeName;
@@ -322,10 +322,10 @@ auto expression_parser() {
     ParserLinker<ExpressionPtr> expressionLink;
     auto expression = expressionLink.get();
 
-    ParserPtr<Nil> nil = extension(keyword("NIL"), [](const auto&) { return Nil{}; });
+    ParserPtr<NilValue> nil = extension(keyword("NIL"), [](const auto&) { return NilValue{}; });
 
-    ParserPtr<Boolean> boolean = extension(either({keyword("TRUE"), keyword("FALSE")}), [](const auto& key) {
-        return Boolean(key == std::vector<char>{'T', 'R', 'U', 'E'});
+    ParserPtr<BooleanValue> boolean = extension(either({keyword("TRUE"), keyword("FALSE")}), [](const auto& key) {
+        return BooleanValue(key == std::vector<char>{'T', 'R', 'U', 'E'});
     });
 
     ParserPtr<size_t> hexnumber = extension(chain(digit, many(hexdigit)), [](const auto& res) {
@@ -355,7 +355,7 @@ auto expression_parser() {
     ParserPtr<Integer> integer =
         construct<Integer>(either({parse_index<0>::select(hexnumber, symbol('H')), decnumber}));
 
-    auto constInteger = construct<ConstInteger>(integer);
+    auto constInteger = construct<IntegerValue>(integer);
 
     auto scale_parser = sequence(either({symbol('E'), symbol('D')}), either({symbol('+'), symbol('-')}), decnumber);
 
@@ -363,14 +363,14 @@ auto expression_parser() {
 
     ParserPtr<Real> real = extension(real_parser, &parse_real);
 
-    auto constReal = construct<ConstReal>(real);
+    auto constReal = construct<RealValue>(real);
 
-    ParserPtr<Char> charConst =
-        construct<Char>(either({parse_index<1>::select(symbol('\''), any, symbol('\'')),
+    ParserPtr<CharValue> charConst =
+        construct<CharValue>(either({parse_index<1>::select(symbol('\''), any, symbol('\'')),
                                 construct<char>(parse_index<0>::select(hexnumber, symbol('X')))}));
 
-    ParserPtr<String> string = construct<String>(parse_index<1>::select(symbol('"'), many(inverse('"')), symbol('"')));
-    ParserPtr<String> singleCharString = construct<String>(parse_index<1>::select(symbol('"'), inverse('"'), symbol('"')));
+    ParserPtr<StringValue> string = construct<StringValue>(parse_index<1>::select(symbol('"'), many(inverse('"')), symbol('"')));
+    ParserPtr<StringValue> singleCharString = construct<StringValue>(parse_index<1>::select(symbol('"'), inverse('"'), symbol('"')));
 
     ParserPtr<SetElement> set_element =
         construct<SetElement>(sequence(expression, maybe(syntax_index<1>::select(symbols(".."), expression))));
@@ -393,7 +393,7 @@ auto expression_parser() {
         symbols("FLOOR"),symbols("FLT"),symbols("ORD"),symbols("CHR"),symbols("INC"),symbols("DEC"),symbols("INCL"),symbols("EXCL"),
         symbols("NEW"),symbols("ASSERT"),symbols("PACK"),symbols("UNPK")});
 
-    ParserPtr<BaseProcedure> baseProcedure = construct<BaseProcedure>(sequence(baseProcedureType, actualParameters));
+    ParserPtr<BaseProcedureValue> baseProcedure = construct<BaseProcedureValue>(sequence(baseProcedureType, actualParameters));
 
     ParserPtr<ProcCall> procCall = construct<ProcCall>(sequence(maybe(commonParams), designator, maybe(actualParameters)));
 
@@ -438,7 +438,7 @@ auto expression_parser() {
 }
 
 auto statement_parser(ParserPtr<ExpressionPtr> expression, ParserPtr<Label> lbl, ParserPtr<Designator> designator,
-                      ParserPtr<ProcCall> procCall, ParserPtr<BaseProcedure> baseProcedure) {
+                      ParserPtr<ProcCall> procCall, ParserPtr<BaseProcedureValue> baseProcedure) {
     ParserLinker<std::vector<StatementPtr>> statementSequenceLink;
     auto statementSequence = statementSequenceLink.get();
 

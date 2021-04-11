@@ -326,7 +326,7 @@ Maybe<TypePtr> ArrayType::normalize(Context& context, bool normalize_pointers) c
         auto expr = copy.length.get(context);
         if (!expr)
             return error;
-        auto integer = dynamic_cast<ConstInteger*>(expr->get());
+        auto integer = dynamic_cast<IntegerValue*>(expr->get());
         if (!integer) {
             context.messages.addErr(expr.value()->place, "Expected integer");
             return error;
@@ -356,7 +356,7 @@ bool ArrayType::assignment_compatible(Context& context, const Type& expr) const 
         auto array_type = type->is<BuiltInType>();
         auto maybe_size = length.get(context);
         if (!maybe_size) return berror;
-        auto size = maybe_size.value()->is<ConstInteger>();
+        auto size = maybe_size.value()->is<IntegerValue>();
         return !open_array && array_type && array_type->type == BaseType::CHAR
             && size && (size->value > static_cast<int>(expr_string->size));
     } else if (auto expr_array = expr.is<ArrayType>(); expr_array && expr_array->open_array) {

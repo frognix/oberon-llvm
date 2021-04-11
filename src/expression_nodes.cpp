@@ -20,16 +20,16 @@
 
 using namespace nodes;
 
-std::string ConstInteger::to_string() const {
+std::string IntegerValue::to_string() const {
     return fmt::format("{}", value);
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> ConstInteger::get_type(Context&) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> IntegerValue::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::INTEGER));
 }
 
-Maybe<ValuePtr> ConstInteger::eval_constant(Context&) const {
-    return make_value<ConstInteger>(*this);
+Maybe<ValuePtr> IntegerValue::eval_constant(Context&) const {
+    return make_value<IntegerValue>(*this);
 }
 
 Maybe<ValuePtr> incompatible_types(Context& context, OpType oper, const Value& left, const Value& right) {
@@ -56,10 +56,10 @@ bool compare_values(OpType oper, auto left, auto right) {
     return result;
 }
 
-Maybe<ValuePtr> ConstInteger::apply_operator(Context& context, OpType oper, const Value& other) const {
-    if (auto pinteger = other.is<ConstInteger>(); pinteger) {
+Maybe<ValuePtr> IntegerValue::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto pinteger = other.is<IntegerValue>(); pinteger) {
         if (OP_COMPARE & oper)
-            return make_value<Boolean>(compare_values(oper, value, pinteger->value));
+            return make_value<BooleanValue>(compare_values(oper, value, pinteger->value));
         Integer result;
         switch (oper) {
             case OP_ADD:  result = value +  pinteger->value; break;
@@ -69,31 +69,31 @@ Maybe<ValuePtr> ConstInteger::apply_operator(Context& context, OpType oper, cons
             case OP_MOD:  result = value %  pinteger->value; break;
             default: return incompatible_types(context, oper, *this, other);
         }
-        return make_value<ConstInteger>(result);
-    } else if (auto pset = other.is<ConstSet>(); pset) {
+        return make_value<IntegerValue>(result);
+    } else if (auto pset = other.is<SetValue>(); pset) {
         if (oper != OP_IN) return incompatible_types(context, oper, *this, other);
-        return make_value<Boolean>(pset->values.test(value));
+        return make_value<BooleanValue>(pset->values.test(value));
     } else {
         return incompatible_types(context, oper, *this, other);
     }
 }
 
-std::string ConstReal::to_string() const {
+std::string RealValue::to_string() const {
     return fmt::format("{}", value);
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> ConstReal::get_type(Context&) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> RealValue::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::REAL));
 }
 
-Maybe<ValuePtr> ConstReal::eval_constant(Context&) const {
-    return make_value<ConstReal>(*this);
+Maybe<ValuePtr> RealValue::eval_constant(Context&) const {
+    return make_value<RealValue>(*this);
 }
 
-Maybe<ValuePtr> ConstReal::apply_operator(Context& context, OpType oper, const Value& other) const {
-    if (auto preal = other.is<ConstReal>(); preal) {
+Maybe<ValuePtr> RealValue::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto preal = other.is<RealValue>(); preal) {
         if (OP_COMPARE & oper)
-            return make_value<Boolean>(compare_values(oper, value, preal->value));
+            return make_value<BooleanValue>(compare_values(oper, value, preal->value));
         Real result;
         switch (oper) {
             case OP_ADD:  result = value + preal->value; break;
@@ -102,101 +102,101 @@ Maybe<ValuePtr> ConstReal::apply_operator(Context& context, OpType oper, const V
             case OP_RDIV: result = value / preal->value; break;
             default: return incompatible_types(context, oper, *this, other);
         }
-        return make_value<ConstReal>(result);
+        return make_value<RealValue>(result);
     } else {
         return incompatible_types(context, oper, *this, other);
     }
 }
 
-std::string Char::to_string() const {
+std::string CharValue::to_string() const {
     if (value < ' ' || value > '~')
         return fmt::format("{}X", (int)value);
     else
         return fmt::format("'{}'", value);
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> Char::get_type(Context&) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> CharValue::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::CHAR));
 }
 
-Maybe<ValuePtr> Char::eval_constant(Context&) const {
-    return make_value<Char>(*this);
+Maybe<ValuePtr> CharValue::eval_constant(Context&) const {
+    return make_value<CharValue>(*this);
 }
 
-Maybe<ValuePtr> Char::apply_operator(Context& context, OpType oper, const Value& other) const {
+Maybe<ValuePtr> CharValue::apply_operator(Context& context, OpType oper, const Value& other) const {
     if (!(OP_COMPARE & oper)) return incompatible_types(context, oper, *this, other);
-    if (auto pchar = other.is<Char>(); pchar) {
-        return make_value<Boolean>(compare_values(oper, value, pchar->value));
-    } else if (auto pstring = other.is<String>(); pstring && pstring->value.size() == 1) {
-        return make_value<Boolean>(compare_values(oper, value, pstring->value[0]));
+    if (auto pchar = other.is<CharValue>(); pchar) {
+        return make_value<BooleanValue>(compare_values(oper, value, pchar->value));
+    } else if (auto pstring = other.is<StringValue>(); pstring && pstring->value.size() == 1) {
+        return make_value<BooleanValue>(compare_values(oper, value, pstring->value[0]));
     } else {
         return incompatible_types(context, oper, *this, other);
     }
 }
 
-std::string String::to_string() const {
+std::string StringValue::to_string() const {
     return fmt::format("\"{}\"", fmt::join(value, ""));
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> String::get_type(Context&) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> StringValue::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_type<ConstStringType>(value.size()));
 }
 
-Maybe<ValuePtr> String::eval_constant(Context&) const {
-    return make_value<String>(*this);
+Maybe<ValuePtr> StringValue::eval_constant(Context&) const {
+    return make_value<StringValue>(*this);
 }
 
-Maybe<ValuePtr> String::apply_operator(Context& context, OpType oper, const Value& other) const {
+Maybe<ValuePtr> StringValue::apply_operator(Context& context, OpType oper, const Value& other) const {
     if (!(OP_COMPARE & oper)) return incompatible_types(context, oper, *this, other);
-    if (auto pchar = other.is<Char>(); pchar && value.size() == 1) {
-        return make_value<Boolean>(compare_values(oper, value[0], pchar->value));
-    } else if (auto pstring = other.is<String>(); pstring) {
-        return make_value<Boolean>(compare_values(oper, value, pstring->value));
+    if (auto pchar = other.is<CharValue>(); pchar && value.size() == 1) {
+        return make_value<BooleanValue>(compare_values(oper, value[0], pchar->value));
+    } else if (auto pstring = other.is<StringValue>(); pstring) {
+        return make_value<BooleanValue>(compare_values(oper, value, pstring->value));
     } else {
         return incompatible_types(context, oper, *this, other);
     }
 }
 
-std::string Nil::to_string() const {
+std::string NilValue::to_string() const {
     return "NIL";
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> Nil::get_type(Context&) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> NilValue::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::NIL));
 }
 
-Maybe<ValuePtr> Nil::eval_constant(Context&) const {
-    return make_value<Nil>(*this);
+Maybe<ValuePtr> NilValue::eval_constant(Context&) const {
+    return make_value<NilValue>(*this);
 }
 
-Maybe<ValuePtr> Nil::apply_operator(Context& context, OpType oper, const Value& other) const {
-    if (auto pnil = other.is<Nil>(); pnil) {
+Maybe<ValuePtr> NilValue::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto pnil = other.is<NilValue>(); pnil) {
         bool result;
         switch (oper) {
             case OP_EQ:  result = true;  break;
             case OP_NEQ: result = false; break;
             default: return incompatible_types(context, oper, *this, other);
         }
-        return make_value<Boolean>(result);
+        return make_value<BooleanValue>(result);
     } else {
         return incompatible_types(context, oper, *this, other);
     }
 }
 
-std::string Boolean::to_string() const {
+std::string BooleanValue::to_string() const {
     return fmt::format("{}", value);
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> Boolean::get_type(Context&) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> BooleanValue::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::BOOL));
 }
 
-Maybe<ValuePtr> Boolean::eval_constant(Context&) const {
-    return make_value<Boolean>(*this);
+Maybe<ValuePtr> BooleanValue::eval_constant(Context&) const {
+    return make_value<BooleanValue>(*this);
 }
 
-Maybe<ValuePtr> Boolean::apply_operator(Context& context, OpType oper, const Value& other) const {
-    if (auto pbool = other.is<Boolean>(); pbool) {
+Maybe<ValuePtr> BooleanValue::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto pbool = other.is<BooleanValue>(); pbool) {
         bool result;
         switch (oper) {
             case OP_OR:  result = value || pbool->value; break;
@@ -205,13 +205,13 @@ Maybe<ValuePtr> Boolean::apply_operator(Context& context, OpType oper, const Val
             case OP_NEQ: result = value != pbool->value; break;
             default: return incompatible_types(context, oper, *this, other);
         }
-        return make_value<Boolean>(result);
+        return make_value<BooleanValue>(result);
     } else {
         return incompatible_types(context, oper, *this, other);
     }
 }
 
-std::string ConstSet::to_string() const {
+std::string SetValue::to_string() const {
     std::vector<uint> set_values;
     for (uint i = 0; i < values.size(); ++i) {
         if (values.test(i)) set_values.push_back(i);
@@ -219,16 +219,16 @@ std::string ConstSet::to_string() const {
     return fmt::format("{{{}}}", fmt::join(set_values, ", "));
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> ConstSet::get_type(Context&) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> SetValue::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::SET));
 }
 
-Maybe<ValuePtr> ConstSet::eval_constant(Context&) const {
-    return make_value<ConstSet>(*this);
+Maybe<ValuePtr> SetValue::eval_constant(Context&) const {
+    return make_value<SetValue>(*this);
 }
 
-Maybe<ValuePtr> ConstSet::apply_operator(Context& context, OpType oper, const Value& other) const {
-    if (auto pset = other.is<ConstSet>(); pset) {
+Maybe<ValuePtr> SetValue::apply_operator(Context& context, OpType oper, const Value& other) const {
+    if (auto pset = other.is<SetValue>(); pset) {
         if (OP_COMPARE & oper) {
             bool result;
             switch (oper) {
@@ -236,9 +236,9 @@ Maybe<ValuePtr> ConstSet::apply_operator(Context& context, OpType oper, const Va
                 case OP_NEQ: result = values != pset->values; break;
                 default: return incompatible_types(context, oper, *this, other);
             }
-            return make_value<Boolean>(result);
+            return make_value<BooleanValue>(result);
         } else {
-            ConstSet::SetType result = values;
+            SetValue::SetType result = values;
              switch (oper) {
                  case OP_ADD:  result |= pset->values; break;
                  case OP_SUB:  result |= ~pset->values; break;
@@ -246,7 +246,7 @@ Maybe<ValuePtr> ConstSet::apply_operator(Context& context, OpType oper, const Va
                  case OP_RDIV: result ^= pset->values; break;
                  default: return incompatible_types(context, oper, *this, other);
              }
-             return make_value<ConstSet>(result);
+             return make_value<SetValue>(result);
         }
     } else {
         return incompatible_types(context, oper, *this, other);
@@ -299,11 +299,11 @@ BPType read_bptype(std::string_view type) {
     internal::compiler_error(__FUNCTION__);
 }
 
-std::string BaseProcedure::to_string() const {
+std::string BaseProcedureValue::to_string() const {
     return fmt::format("{}({})", show_bptype(name), params);
 }
 
-inline bool expect_params_count(Context& context, const BaseProcedure& proc, std::initializer_list<size_t> count) {
+inline bool expect_params_count(Context& context, const BaseProcedureValue& proc, std::initializer_list<size_t> count) {
     if (std::ranges::find(count, proc.params.size()) == count.end()) {
         std::vector count_vector(count);
         context.messages.addErr(proc.place, "Expected {} parameters, found {}", fmt::join(count_vector, " or "), proc.params.size());
@@ -312,11 +312,11 @@ inline bool expect_params_count(Context& context, const BaseProcedure& proc, std
     return bsuccess;
 }
 
-inline bool expect_params_count(Context& context, const BaseProcedure& proc, size_t count) {
+inline bool expect_params_count(Context& context, const BaseProcedureValue& proc, size_t count) {
     return expect_params_count(context, proc, {count});
 }
 
-inline bool exprect_var(Context& context, const BaseProcedure& proc, std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index) {
+inline bool exprect_var(Context& context, const BaseProcedureValue& proc, std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index) {
     if (types[index].first != SymbolGroup::VAR) {
         context.messages.addErr(proc.params[index]->place, "Expected variable");
         return berror;
@@ -331,7 +331,7 @@ bool many_and(Types... args) {
 }
 
 template <class... Type>
-inline bool expect_type(Context& context, const BaseProcedure& proc, std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index, std::string_view descr) {
+inline bool expect_type(Context& context, const BaseProcedureValue& proc, std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index, std::string_view descr) {
     if (many_and(!types[index].second->is<Type>()...)) {
         context.messages.addErr(proc.params[index]->place, "Expected {}", descr);
         return berror;
@@ -339,7 +339,7 @@ inline bool expect_type(Context& context, const BaseProcedure& proc, std::vector
     return bsuccess;
 }
 
-inline bool expect_base_type(Context& context, const BaseProcedure& proc,  std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index, std::initializer_list<BaseType> base_types) {
+inline bool expect_base_type(Context& context, const BaseProcedureValue& proc,  std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index, std::initializer_list<BaseType> base_types) {
     if (auto type = types[index].second->is<BuiltInType>(); type) {
         if (std::ranges::find(base_types, type->type) != base_types.end()) return true;
     }
@@ -348,11 +348,11 @@ inline bool expect_base_type(Context& context, const BaseProcedure& proc,  std::
     return berror;
 }
 
-inline bool expect_base_type(Context& context, const BaseProcedure& proc,  std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index, BaseType base_type) {
+inline bool expect_base_type(Context& context, const BaseProcedureValue& proc,  std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index, BaseType base_type) {
     return expect_base_type(context, proc, types, index, {base_type});
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> BaseProcedure::get_type(Context& context) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> BaseProcedureValue::get_type(Context& context) const {
     std::vector<std::pair<SymbolGroup, TypePtr>> params_types;
     bool param_error = false;
     for (auto param : params) {
@@ -439,7 +439,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> BaseProcedure::get_type(Context& context)
     internal::compiler_error(__FUNCTION__);
 }
 
-Maybe<ValuePtr> BaseProcedure::eval_constant(Context& context) const {
+Maybe<ValuePtr> BaseProcedureValue::eval_constant(Context& context) const {
     std::vector<ValuePtr> params_values;
     bool param_error = false;
     for (auto param : params) {
@@ -450,42 +450,42 @@ Maybe<ValuePtr> BaseProcedure::eval_constant(Context& context) const {
     if (param_error) return error;
     auto type = get_type(context);
     if (!type) return error;
-    auto first_integer = params_values[0]->is<ConstInteger>();
+    auto first_integer = params_values[0]->is<IntegerValue>();
     if (name == BPType::ABS) {
-        if (first_integer) return make_value<ConstInteger>(std::abs(first_integer->value));
-        auto first_real = params_values[0]->is<ConstReal>();
-        if (first_real) return make_value<ConstReal>(std::abs(first_real->value));
+        if (first_integer) return make_value<IntegerValue>(std::abs(first_integer->value));
+        auto first_real = params_values[0]->is<RealValue>();
+        if (first_real) return make_value<RealValue>(std::abs(first_real->value));
     } else if (name == BPType::ODD && first_integer) {
-        return make_value<Boolean>(first_integer->value % 2 == 1);
+        return make_value<BooleanValue>(first_integer->value % 2 == 1);
     } else if (name == BPType::LEN) {
-        auto first_string = params_values[0]->is<String>();
-        if (first_string) return make_value<ConstInteger>(first_string->value.size());
+        auto first_string = params_values[0]->is<StringValue>();
+        if (first_string) return make_value<IntegerValue>(first_string->value.size());
     } else if (name == BPType::FLOOR) {
-        auto first_real = params_values[0]->is<ConstReal>();
-        return make_value<ConstInteger>(std::floor(first_real->value));
+        auto first_real = params_values[0]->is<RealValue>();
+        return make_value<IntegerValue>(std::floor(first_real->value));
     } else if (name == BPType::FLT) {
-        return make_value<ConstReal>(first_integer->value);
+        return make_value<RealValue>(first_integer->value);
     } else if (name == BPType::ORD) {
-        auto first_char = params_values[0]->is<Char>();
-        if (first_char) return make_value<ConstInteger>(first_char->value);
-        auto first_bool = params_values[0]->is<Boolean>();
-        if (first_bool) return make_value<ConstInteger>(first_bool->value);
-        auto first_set = params_values[0]->is<ConstSet>();
-        if (first_set) return make_value<ConstInteger>(first_set->values.to_ulong());
+        auto first_char = params_values[0]->is<CharValue>();
+        if (first_char) return make_value<IntegerValue>(first_char->value);
+        auto first_bool = params_values[0]->is<BooleanValue>();
+        if (first_bool) return make_value<IntegerValue>(first_bool->value);
+        auto first_set = params_values[0]->is<SetValue>();
+        if (first_set) return make_value<IntegerValue>(first_set->values.to_ulong());
     } else if (name == BPType::CHR) {
         if (first_integer->value > 255 || first_integer->value < 0) {
             context.messages.addErr(place, "Expected integer >= 0 and < 256");
             return error;
         }
-        return make_value<Char>(first_integer->value);
+        return make_value<CharValue>(first_integer->value);
     }
 
     if (params_values.size() == 2) {
-        auto second_integer = params_values[1]->is<ConstInteger>();
+        auto second_integer = params_values[1]->is<IntegerValue>();
         if (name == BPType::LSL && first_integer && second_integer) {
-            return make_value<ConstInteger>(first_integer->value * std::pow(2, second_integer->value));
+            return make_value<IntegerValue>(first_integer->value * std::pow(2, second_integer->value));
         } else if (name == BPType::ASR && first_integer && second_integer) {
-            return make_value<ConstInteger>(first_integer->value / std::pow(2, second_integer->value));
+            return make_value<IntegerValue>(first_integer->value / std::pow(2, second_integer->value));
         } else if (name == BPType::ROR && first_integer && second_integer) {
             auto rotr32 = [](uint n, int c) -> uint32_t {
                 const uint mask = (8*sizeof(n) - 1);
@@ -494,7 +494,7 @@ Maybe<ValuePtr> BaseProcedure::eval_constant(Context& context) const {
             };
             uint abs = std::abs(first_integer->value);
             int sign = first_integer->value / abs;
-            return make_value<ConstInteger>(sign*rotr32(abs, second_integer->value));
+            return make_value<IntegerValue>(sign*rotr32(abs, second_integer->value));
         }
     }
 
@@ -503,13 +503,13 @@ Maybe<ValuePtr> BaseProcedure::eval_constant(Context& context) const {
     internal::compiler_error(__FUNCTION__);
 }
 
-Maybe<ValuePtr> BaseProcedure::apply_operator(Context& context, OpType oper, const Value& other) const {
+Maybe<ValuePtr> BaseProcedureValue::apply_operator(Context& context, OpType oper, const Value& other) const {
     auto this_value = eval_constant(context);
     if (!this_value) return error;
     return this_value.value()->apply_operator(context, oper, other);
 }
 
-BaseProcedure::BaseProcedure(std::string_view n, ExpList p) : name(read_bptype(n)), params(p) {}
+BaseProcedureValue::BaseProcedureValue(std::string_view n, ExpList p) : name(read_bptype(n)), params(p) {}
 
 std::string Set::to_string() const {
     return fmt::format("{{{}}}", fmt::join(value, ", "));
@@ -519,10 +519,10 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Set::get_type(Context&) const {
     return std::pair(SymbolGroup::CONST, make_base_type(BaseType::SET));
 }
 
-inline Maybe<ConstInteger> check_value(Context& context, const Expression& expr) {
+inline Maybe<IntegerValue> check_value(Context& context, const Expression& expr) {
     auto value_res = expr.eval_constant(context);
     if (!value_res) return error;
-    auto value_int = value_res.value()->is<ConstInteger>();
+    auto value_int = value_res.value()->is<IntegerValue>();
     if (!value_int) {
         context.messages.addErr(expr.place, "Exprected integer value");
         return error;
@@ -531,7 +531,7 @@ inline Maybe<ConstInteger> check_value(Context& context, const Expression& expr)
 }
 
 Maybe<ValuePtr> Set::eval_constant(Context& context) const {
-    ConstSet::SetType set;
+    SetValue::SetType set;
     for (auto elem : value) {
         auto first_int = check_value(context, *elem.first);
         if (!first_int) return error;
@@ -553,7 +553,7 @@ Maybe<ValuePtr> Set::eval_constant(Context& context) const {
             set.set(first_int->value);
         }
     }
-    return make_value<ConstSet>(set);
+    return make_value<SetValue>(set);
 }
 
 Set::Set(std::optional<std::vector<SetElement>> v) {
@@ -808,12 +808,12 @@ Maybe<ValuePtr> Tilda::eval_constant(Context& context) const {
     auto res = expression->eval_constant(context);
     if (!res)
         return error;
-    auto boolean = dynamic_cast<Boolean*>(res->get());
+    auto boolean = dynamic_cast<BooleanValue*>(res->get());
     if (!boolean) {
         context.messages.addErr(place, "Expected boolean");
         return error;
     }
-    return make_value<Boolean>(!boolean->value);
+    return make_value<BooleanValue>(!boolean->value);
 }
 
 OpType ident_to_optype(std::string_view i) {
@@ -985,7 +985,7 @@ Maybe<std::pair<SymbolGroup, TypePtr>> Term::get_type(Context& context) const {
         auto res = first->get_type(context);
         if (!res) return error;
         auto [group, type] = res.value();
-        if (oper && !type->is<ConstInteger>() && !type->is<ConstReal>()) {
+        if (oper && !type->is<IntegerValue>() && !type->is<RealValue>()) {
             context.messages.addErr(place, "Expected numeric value for sign");
             return error;
         }
@@ -1015,9 +1015,9 @@ Maybe<ValuePtr> Term::eval_constant(Context& context) const {
         if (!firstRes) return error;
         if (sign) {
             int int_sign = sign == '-' ? -1 : 1;
-            if (auto res_integer = firstRes.value()->is<ConstInteger>(); res_integer) {
+            if (auto res_integer = firstRes.value()->is<IntegerValue>(); res_integer) {
                 res_integer->value *= int_sign;
-            } else if (auto res_real = firstRes.value()->is<ConstReal>(); res_real) {
+            } else if (auto res_real = firstRes.value()->is<RealValue>(); res_real) {
                 res_real->value *= int_sign;
             } else {
                 context.messages.addErr(place, "Expected numeric value for sign");

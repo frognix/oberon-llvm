@@ -10,72 +10,72 @@ struct SymbolToken;
 
 namespace nodes {
 
-struct ConstInteger : Value {
+struct IntegerValue : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
 
-    bool operator == (const ConstInteger& other) const { return value == other.value; }
+    bool operator == (const IntegerValue& other) const { return value == other.value; }
 
-    ConstInteger(Integer i) : value(i) {}
+    IntegerValue(Integer i) : value(i) {}
     Integer value;
 };
 
-struct ConstReal : Value {
+struct RealValue : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
-    ConstReal(Real d) : value(d) {}
+    RealValue(Real d) : value(d) {}
     Real value;
 };
 
-struct Char : Value {
+struct CharValue : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
-    Char(char c) : value(c) {}
+    CharValue(char c) : value(c) {}
     char value;
 };
 
-struct String : Value {
+struct StringValue : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
 
-    bool operator == (const String& other) const  { return value == other.value; }
+    bool operator == (const StringValue& other) const  { return value == other.value; }
 
-    String(std::vector<char> v) : value(v) {}
-    String(char v) : value{v} {}
+    StringValue(std::vector<char> v) : value(v) {}
+    StringValue(char v) : value{v} {}
     std::vector<char> value;
 };
 
-struct Nil : Value {
+struct NilValue : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
-    Nil() {}
+    NilValue() {}
 };
 
-struct Boolean : Value {
+struct BooleanValue : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
-    Boolean(bool v) : value(v) {}
+    BooleanValue(bool v) : value(v) {}
     bool value;
 };
 
-struct ConstSet : Value {
+struct SetValue : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
-    ConstSet(std::bitset<64> s) : values(s) {};
+    SetValue(std::bitset<64> s) : values(s) {};
 
     using SetType = std::bitset<64>;
     SetType values;
@@ -88,13 +88,13 @@ enum class BPType {
     NEW, ASSERT, PACK, UNPK
 };
 
-struct BaseProcedure : Value {
+struct BaseProcedureValue : Value {
     std::string to_string() const override;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
 
-    BaseProcedure(std::string_view, ExpList);
+    BaseProcedureValue(std::string_view, ExpList);
 
     BPType name;
     ExpList params;

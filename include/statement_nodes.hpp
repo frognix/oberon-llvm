@@ -25,7 +25,7 @@ struct IfStatement : Statement {
     std::optional<StatementSequence> else_block;
 };
 
-using Label = std::variant<Integer, String, QualIdent>;
+using Label = std::variant<Integer, StringValue, QualIdent>;
 
 struct CaseLabel {
     Label first;

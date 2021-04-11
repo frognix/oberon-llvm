@@ -162,7 +162,7 @@ struct ProcedureType : Type {
 
 struct CommonFeature {
     bool operator == (const CommonFeature&) const = default;
-    std::variant<Ident, ConstInteger, String> value;
+    std::variant<Ident, IntegerValue, StringValue> value;
 };
 
 struct CommonFeatureType {

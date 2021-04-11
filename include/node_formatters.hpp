@@ -229,13 +229,13 @@ struct fmt::formatter<nodes::IfBlock> {
 };
 
 template <>
-struct fmt::formatter<nodes::String> {
+struct fmt::formatter<nodes::StringValue> {
     template <typename ParseContext>
     constexpr auto parse(ParseContext& ctx) {
         return ctx.begin();
     }
     template <typename FormatContext>
-    auto format(nodes::String const& id, FormatContext& ctx) {
+    auto format(nodes::StringValue const& id, FormatContext& ctx) {
         return fmt::format_to(ctx.out(), "{}", id.to_string());
     }
 };

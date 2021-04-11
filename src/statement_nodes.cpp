@@ -181,7 +181,7 @@ bool ForStatement::check(Context& context) const {
     if (by_expr) {
         auto value = by_expr->get(context);
         if (!value) return berror;
-        if (!value.value()->is<ConstInteger>()) {
+        if (!value.value()->is<IntegerValue>()) {
             context.messages.addErr(value.value()->place, "Expected integer");
             return berror;
         }
