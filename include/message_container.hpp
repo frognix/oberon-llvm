@@ -25,8 +25,8 @@ public:
         addMessage({priority, place, fmt::format(str, args...)});
     }
     template <class... Args>
-    void addErr(CodePlace place, const char* str, const Args&... args) noexcept {
-        addMessage({MPriority::ERR, place, fmt::format(str, args...)});
+    void addErr(CodePlace place, const char* str, Args&&... args) noexcept {
+        addMessage({MPriority::ERR, place, fmt::format(str, std::forward<Args>(args)...)});
     }
     void addMessage(Message message);
 private:

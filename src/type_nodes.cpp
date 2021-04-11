@@ -12,7 +12,7 @@
 
 using namespace nodes;
 
-const char* basetype_to_str(BaseType type) {
+const char* nodes::basetype_to_str(BaseType type) {
     switch (type) {
         case BaseType::BOOL: return "BOOL";
         case BaseType::CHAR: return "CHAR";
@@ -21,6 +21,7 @@ const char* basetype_to_str(BaseType type) {
         case BaseType::BYTE: return "BYTE";
         case BaseType::SET: return "SET";
         case BaseType::NIL: return "NIL";
+        case BaseType::VOID: return "VOID";
         default: internal::compiler_error("Unexpected BaseType");
     }
 }
@@ -519,6 +520,10 @@ Maybe<TypePtr> CommonType::normalize(Context& context, bool normalize_pointers) 
         }
         auto type = pair.type->normalize(context, normalize_pointers);
         if (!type) return error;
+        if (!type.value()->is<RecordType>() && !type.value()->is<CommonType>()) {
+            context.messages.addErr(pair.type->place, "Expected Record or Common type");
+            return error;
+        }
         copy.pair_list.emplace_back(pair.feature, type.value());
     }
     if (else_clause) {

@@ -73,8 +73,8 @@ struct ForStatement : Statement {
 struct CallStatement : Statement {
     std::string to_string() const override;
     bool check(Context&) const override;
-    CallStatement(ProcCall c) : call(c) {}
-    ProcCall call;
+    CallStatement(ExpressionPtr c) : call(c) {}
+    ExpressionPtr call;
 };
 
 } // namespace nodes

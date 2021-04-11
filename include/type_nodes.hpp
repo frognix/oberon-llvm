@@ -19,7 +19,7 @@ struct BuiltInType : Type {
     BuiltInType() : type() {}
     BuiltInType(std::string_view i);
     BuiltInType(BaseType t);
-    BaseType type = BaseType::NONE;
+    BaseType type = BaseType::VOID;
 };
 
 inline TypePtr make_base_type(BaseType t) {
@@ -30,6 +30,8 @@ inline bool is_base_type(Ident ident) {
     return ident.equal_to("BOOLEAN") || ident.equal_to("CHAR") || ident.equal_to("INTEGER") || ident.equal_to("REAL") ||
            ident.equal_to("BYTE") || ident.equal_to("SET");
 }
+
+const char* basetype_to_str(BaseType type);
 
 struct TypeName : Type {
     std::string to_string() const override;
@@ -223,6 +225,8 @@ struct ScalarType : Type {
 
     ScalarType() {}
     ScalarType(TypePtr t, CommonFeature f) : type(t), feature(f) {}
+
+    const Type& get_type() const { return type->is<CommonType>()->get_case(feature); }
 
     TypePtr type;
     CommonFeature feature;

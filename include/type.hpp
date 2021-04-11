@@ -13,7 +13,7 @@ struct Type : Node {
 };
 
 enum class BaseType {
-    NONE,
+    VOID,
     BOOL,
     CHAR,
     INTEGER,

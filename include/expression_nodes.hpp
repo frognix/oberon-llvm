@@ -49,6 +49,7 @@ struct String : Value {
     bool operator == (const String& other) const  { return value == other.value; }
 
     String(std::vector<char> v) : value(v) {}
+    String(char v) : value{v} {}
     std::vector<char> value;
 };
 
@@ -78,6 +79,25 @@ struct ConstSet : Value {
     std::set<Integer> values;
 };
 
+enum class BPType {
+    ABS, ODD, LEN, LSL, ASR, ROR,
+    FLOOR, FLT, ORD, CHR,
+    INC, DEC, INCL, EXCL,
+    NEW, ASSERT, PACK, UNPK
+};
+
+struct BaseProcedure : Value {
+    std::string to_string() const override;
+    Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context&) const override;
+    Maybe<ValuePtr> eval_constant(Context&) const override;
+    Maybe<ValuePtr> apply_operator(Context&, OpType, const Value&) const override;
+
+    BaseProcedure(std::string_view, ExpList);
+
+    BPType name;
+    ExpList params;
+};
+
 struct SetElement {
     ExpressionPtr first;
     std::optional<ExpressionPtr> second;
@@ -103,7 +123,6 @@ using ProcCallDataRepairer = Repairer<ProcCallData, Context, proccall_repair>;
 
 struct ProcCall : Expression {
     std::string to_string() const override;
-    Maybe<std::pair<SymbolGroup, TypePtr>> get_info(Context& table) const;
     Maybe<std::pair<SymbolGroup, TypePtr>> get_type(Context& table) const override;
     Maybe<ValuePtr> eval_constant(Context&) const override;
     ProcCall(std::optional<std::vector<QualIdent>> c, DesignatorRepairer i, std::optional<ExpList> e) : data(c, i, e) {}

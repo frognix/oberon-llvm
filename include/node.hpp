@@ -17,6 +17,10 @@ struct Node {
     const T* is() const {
         return dynamic_cast<const T*>(this);
     }
+    template <class T>
+    T* is() {
+        return dynamic_cast<T*>(this);
+    }
     virtual std::string to_string() const = 0;
     virtual ~Node() {}
 };

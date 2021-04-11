@@ -1,5 +1,6 @@
 #include "statement_nodes.hpp"
 #include "expression_nodes.hpp"
+#include "message_container.hpp"
 #include "node_formatters.hpp"
 
 #include "semantic_context.hpp"
@@ -90,8 +91,59 @@ std::string CaseStatement::to_string() const {
     return fmt::format("CASE {} OF {} END", expression, fmt::join(cases, " |\n"));
 }
 
-bool CaseStatement::check(Context&) const {
-    return bsuccess;
+bool CaseStatement::check(Context& context) const {
+    if (cases.size() == 0) return true;
+    auto label_index = std::get<0>(cases[0]).front().first.index();
+    auto expr_res = expression->get_type(context);
+    if (!expr_res) return berror;
+    auto [expr_group, expr_type] = expr_res.value();
+    auto expr_basetype = expr_type->is<BuiltInType>();
+
+    const Type* expr_record = nullptr;
+    if (label_index == 2) {
+        if (auto pointer_type = expr_type->is<PointerType>(); pointer_type) {
+            expr_record = &pointer_type->get_type(context);
+        } else if (auto record_type = expr_type->is<RecordType>(); record_type) {
+            expr_record = record_type;
+        } else {
+            context.messages.addErr(expression->place, "Expected Record or Pointer type for type labels");
+            return berror;
+        }
+    }
+
+    auto result = bsuccess;
+    for (auto& [label_list, statements] : cases) {
+        for (auto& label : label_list) {
+            if (label.first.index() != label_index || (label.second && label.second->index() != label_index)) {
+                context.messages.addErr(place, "Different label types in case statement");
+                result = berror;
+            } else if (label_index == 0 && (!expr_basetype || expr_basetype->type != BaseType::INTEGER)) {
+                context.messages.addErr(place, "Expected expression of INTEGER type");
+                result = berror;
+            } else if (label_index == 1 && (!expr_basetype || expr_basetype->type != BaseType::CHAR)) {
+                context.messages.addErr(place, "Expected expression of CHAR type");
+                result = berror;
+            } else if (label_index == 2) {
+                if (label.second) {
+                    context.messages.addErr(place, "Unexpected label range for type labels");
+                    result = berror;
+                    continue;
+                }
+                auto ident = std::get<2>(label.first);
+                auto symbol = context.symbols.get_symbol(context.messages, ident);
+                if (!symbol) {
+                    result = berror;
+                    continue;
+                }
+                if (!expr_record->assignment_compatible(context, *symbol->type)) {
+                    context.messages.addErr(ident.ident.place, "Expected extension of type: {}", expr_type->to_string());
+                    result = berror;
+                }
+            }
+        }
+        if (!check_statements(context, statements)) result = berror;
+    }
+    return result;
 }
 
 std::string WhileStatement::to_string() const {
@@ -149,16 +201,14 @@ bool ForStatement::check(Context& context) const {
 }
 
 std::string CallStatement::to_string() const {
-    return fmt::format("{}", call.to_string());
+    return fmt::format("{}", call->to_string());
 }
 
 bool CallStatement::check(Context& context) const {
-    auto info = call.get_info(context);
-    if (!info) return berror;
-    auto [group, type] = *info;
-    if (type != nullptr) {
-        context.messages.addErr(place, "Expected procedure call without return type");
-        return berror;
-    }
+    auto pair = call->get_type(context);
+    if (!pair) return berror;
+    auto [group, type] = *pair;
+    if (auto base = type->is<BuiltInType>(); !base || base->type != BaseType::VOID)
+        context.messages.addFormat(MPriority::W3, place, "Unused built-in procedure result value");
     return bsuccess;
 }

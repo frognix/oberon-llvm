@@ -369,10 +369,8 @@ auto expression_parser() {
         construct<Char>(either({parse_index<1>::select(symbol('\''), any, symbol('\'')),
                                 construct<char>(parse_index<0>::select(hexnumber, symbol('X')))}));
 
-    ParserPtr<String> string = construct<String>(either({
-        parse_index<1>::select(symbol('\''), many(inverse('\'')), symbol('\'')),
-        parse_index<1>::select(symbol('"'), many(inverse('"')), symbol('"')),
-    }));
+    ParserPtr<String> string = construct<String>(parse_index<1>::select(symbol('"'), many(inverse('"')), symbol('"')));
+    ParserPtr<String> singleCharString = construct<String>(parse_index<1>::select(symbol('"'), inverse('"'), symbol('"')));
 
     ParserPtr<SetElement> set_element =
         construct<SetElement>(sequence(expression, maybe(syntax_index<1>::select(symbols(".."), expression))));
@@ -391,6 +389,12 @@ auto expression_parser() {
 
     auto commonParams = syntax_index<1>::select(symbol('{'), extra_delim(qualident, symbol(',')), symbols("}."));
 
+    auto baseProcedureType = either({symbols("ABS"),symbols("ODD"),symbols("LEN"),symbols("LSL"),symbols("ASR"),symbols("ROR"),
+        symbols("FLOOR"),symbols("FLT"),symbols("ORD"),symbols("CHR"),symbols("INC"),symbols("DEC"),symbols("INCL"),symbols("EXCL"),
+        symbols("NEW"),symbols("ASSERT"),symbols("PACK"),symbols("UNPK")});
+
+    ParserPtr<BaseProcedure> baseProcedure = construct<BaseProcedure>(sequence(baseProcedureType, actualParameters));
+
     ParserPtr<ProcCall> procCall = construct<ProcCall>(sequence(maybe(commonParams), designator, maybe(actualParameters)));
 
     ParserLinker<ExpressionPtr> factorLink;
@@ -398,7 +402,7 @@ auto expression_parser() {
     ParserPtr<Tilda> tilda = construct<Tilda>(syntax_index<1>::select(symbol('~'), factorLink.get()));
 
     auto preFactor =
-        either({node_either<Expression>(charConst, constReal, constInteger, string, nil, boolean, procCall, set, tilda),
+        either({node_either<Expression>(charConst, constReal, constInteger, string, nil, boolean, baseProcedure, procCall, set, tilda),
                 syntax_index<1>::select(symbol('('), expression, symbol(')'))});
     auto factor = factorLink.link(preFactor);
 
@@ -427,14 +431,14 @@ auto expression_parser() {
         construct<Term>(syntax_sequence(simpleExpression, maybe(syntax_sequence(relation, simpleExpression)))));
     auto realExpression = expressionLink.link(preExpression);
 
-    auto lbl = variant(integer, string, qualident);
+    auto lbl = variant(integer, singleCharString, qualident);
     auto commonFeature = construct<CommonFeature>(variant(ident, constInteger, string));
 
-    return std::tuple{realExpression, procCall, designator, lbl, commonFeature};
+    return std::tuple{realExpression, procCall, baseProcedure, designator, lbl, commonFeature};
 }
 
 auto statement_parser(ParserPtr<ExpressionPtr> expression, ParserPtr<Label> lbl, ParserPtr<Designator> designator,
-                      ParserPtr<ProcCall> procCall) {
+                      ParserPtr<ProcCall> procCall, ParserPtr<BaseProcedure> baseProcedure) {
     ParserLinker<std::vector<StatementPtr>> statementSequenceLink;
     auto statementSequence = statementSequenceLink.get();
 
@@ -467,7 +471,7 @@ auto statement_parser(ParserPtr<ExpressionPtr> expression, ParserPtr<Label> lbl,
         keyword("FOR"), ident, symbols(":="), expression, keyword("TO"), expression,
         maybe(syntax_index<1>::select(keyword("BY"), expression)), keyword("DO"), statementSequence, keyword("END")));
 
-    auto statement = node_either<Statement>(assignment, construct<CallStatement>(set_place(procCall)), ifStatement,
+    auto statement = node_either<Statement>(assignment, construct<CallStatement>(node_either<Expression>(baseProcedure, procCall)), ifStatement,
                                             caseStatement, whileStatement, repeatStatement, forStatement);
     auto realStatementSequence =
         statementSequenceLink.link(unwrap_maybe_list(extra_delim(maybe(statement), symbols(";"))));
@@ -561,9 +565,9 @@ ParserPtr<Definition> definition_parser(ParserPtr<ImportList> importList, Parser
 
 ParserPtr<std::shared_ptr<IModule>> get_parsers() {
 
-    auto [expression, procCall, designator, lbl, commonFeature] = expression_parser();
+    auto [expression, procCall, baseProcedure, designator, lbl, commonFeature] = expression_parser();
 
-    auto statementSequence = statement_parser(expression, lbl, designator, procCall);
+    auto statementSequence = statement_parser(expression, lbl, designator, procCall, baseProcedure);
 
     auto [type, formalParameters, fieldList] = type_parser(expression, commonFeature);
 

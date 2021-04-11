@@ -2,14 +2,21 @@
 
 #include "expression.hpp"
 #include "internal_error.hpp"
+#include "node.hpp"
 #include "node_formatters.hpp"
+#include "semantic_context.hpp"
 #include "symbol_token.hpp"
 #include "type.hpp"
 #include "type_nodes.hpp"
 #include "symbol_table.hpp"
+#include <bits/stdint-uintn.h>
+#include <cmath>
+#include <initializer_list>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <algorithm>
+#include <ranges>
 
 using namespace nodes;
 
@@ -254,6 +261,258 @@ Maybe<ValuePtr> ConstSet::apply_operator(Context& context, OpType oper, const Va
     }
 }
 
+constexpr const char* show_bptype(BPType type) {
+    switch (type) {
+        case BPType::ABS:    return "ABS";
+        case BPType::ODD:    return "ODD";
+        case BPType::LEN:    return "LEN";
+        case BPType::LSL:    return "LSL";
+        case BPType::ASR:    return "ASR";
+        case BPType::ROR:    return "ROR";
+        case BPType::FLOOR:  return "FLOOR";
+        case BPType::FLT:    return "FLT";
+        case BPType::ORD:    return "ORD";
+        case BPType::CHR:    return "CHR";
+        case BPType::INC:    return "INC";
+        case BPType::DEC:    return "DEC";
+        case BPType::INCL:   return "INCL";
+        case BPType::EXCL:   return "EXCL";
+        case BPType::NEW:    return "NEW";
+        case BPType::ASSERT: return "ASSERT";
+        case BPType::PACK:   return "PACK";
+        case BPType::UNPK:   return "UNPK";
+        default: internal::compiler_error(__FUNCTION__);
+    }
+}
+
+BPType read_bptype(std::string_view type) {
+    if (type == show_bptype(BPType::ABS))    return BPType::ABS;
+    if (type == show_bptype(BPType::ODD))    return BPType::ODD;
+    if (type == show_bptype(BPType::LEN))    return BPType::LEN;
+    if (type == show_bptype(BPType::LSL))    return BPType::LSL;
+    if (type == show_bptype(BPType::ASR))    return BPType::ASR;
+    if (type == show_bptype(BPType::ROR))    return BPType::ROR;
+    if (type == show_bptype(BPType::FLOOR))  return BPType::FLOOR;
+    if (type == show_bptype(BPType::FLT))    return BPType::FLT;
+    if (type == show_bptype(BPType::ORD))    return BPType::ORD;
+    if (type == show_bptype(BPType::CHR))    return BPType::CHR;
+    if (type == show_bptype(BPType::INC))    return BPType::INC;
+    if (type == show_bptype(BPType::DEC))    return BPType::DEC;
+    if (type == show_bptype(BPType::INCL))   return BPType::INCL;
+    if (type == show_bptype(BPType::EXCL))   return BPType::EXCL;
+    if (type == show_bptype(BPType::NEW))    return BPType::NEW;
+    if (type == show_bptype(BPType::ASSERT)) return BPType::ASSERT;
+    if (type == show_bptype(BPType::PACK))   return BPType::PACK;
+    if (type == show_bptype(BPType::UNPK))   return BPType::UNPK;
+    internal::compiler_error(__FUNCTION__);
+}
+
+std::string BaseProcedure::to_string() const {
+    return fmt::format("{}({})", show_bptype(name), params);
+}
+
+inline bool expect_params_count(Context& context, const BaseProcedure& proc, std::initializer_list<size_t> count) {
+    if (std::ranges::find(count, proc.params.size()) == count.end()) {
+        std::vector count_vector(count);
+        context.messages.addErr(proc.place, "Expected {} parameters, found {}", fmt::join(count_vector, " or "), proc.params.size());
+        return berror;
+    }
+    return bsuccess;
+}
+
+inline bool expect_params_count(Context& context, const BaseProcedure& proc, size_t count) {
+    return expect_params_count(context, proc, {count});
+}
+
+inline bool exprect_var(Context& context, const BaseProcedure& proc, std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index) {
+    if (types[index].first != SymbolGroup::VAR) {
+        context.messages.addErr(proc.params[index]->place, "Expected variable");
+        return berror;
+    }
+    return bsuccess;
+}
+
+template <class... Types>
+requires (std::convertible_to<Types, bool> && ...)
+bool many_and(Types... args) {
+    return (true && ... && args);
+}
+
+template <class... Type>
+inline bool expect_type(Context& context, const BaseProcedure& proc, std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index, std::string_view descr) {
+    if (many_and(!types[index].second->is<Type>()...)) {
+        context.messages.addErr(proc.params[index]->place, "Expected {}", descr);
+        return berror;
+    }
+    return bsuccess;
+}
+
+inline bool expect_base_type(Context& context, const BaseProcedure& proc,  std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index, std::initializer_list<BaseType> base_types) {
+    if (auto type = types[index].second->is<BuiltInType>(); type) {
+        if (std::ranges::find(base_types, type->type) != base_types.end()) return true;
+    }
+    auto type_strings = std::views::transform(base_types, basetype_to_str);
+    context.messages.addErr(proc.params[index]->place, "Expected {}", fmt::join(type_strings, " or "));
+    return berror;
+}
+
+inline bool expect_base_type(Context& context, const BaseProcedure& proc,  std::vector<std::pair<SymbolGroup, TypePtr>> types, size_t index, BaseType base_type) {
+    return expect_base_type(context, proc, types, index, {base_type});
+}
+
+Maybe<std::pair<SymbolGroup, TypePtr>> BaseProcedure::get_type(Context& context) const {
+    std::vector<std::pair<SymbolGroup, TypePtr>> params_types;
+    bool param_error = false;
+    for (auto param : params) {
+        auto param_type = param->get_type(context);
+        if (!param_type) param_error = true;
+        if (!param_error) params_types.push_back(param_type.value());
+    }
+    if (param_error) return error;
+    const std::vector<std::tuple<BPType, std::vector<BaseType>, BaseType>> proc_templates = {
+        {BPType::ODD, {BaseType::INTEGER}, BaseType::BOOL},
+        {BPType::LSL, {BaseType::INTEGER, BaseType::INTEGER}, BaseType::INTEGER},
+        {BPType::ASR, {BaseType::INTEGER, BaseType::INTEGER}, BaseType::INTEGER},
+        {BPType::ROR, {BaseType::INTEGER, BaseType::INTEGER}, BaseType::INTEGER},
+        {BPType::FLOOR, {BaseType::REAL}, BaseType::INTEGER},
+        {BPType::FLT, {BaseType::INTEGER}, BaseType::REAL},
+        {BPType::CHR, {BaseType::INTEGER}, BaseType::CHAR}
+    };
+    auto templ_it = std::ranges::find_if(proc_templates, [this](auto& templ){ return std::get<0>(templ) == name; });
+    if (templ_it != proc_templates.end()) {
+        auto templ_params = std::get<1>(*templ_it);
+        if (!expect_params_count(context, *this, templ_params.size())) return error;
+        for (size_t i = 0; i < templ_params.size(); ++i) {
+            auto [group, type] = params_types[i];
+            auto base_type = type->is<BuiltInType>();
+            if (!base_type) {
+                context.messages.addErr(params[i]->place, "Expected expression of built-in type");
+                return error;
+            }
+            if (base_type->type != templ_params[i]) {
+                context.messages.addErr(params[i]->place, "Expected expression of {} type", basetype_to_str(templ_params[i]));
+                return error;
+            }
+        }
+        return std::pair(SymbolGroup::CONST, make_base_type(std::get<2>(*templ_it)));
+    }
+    if (name == BPType::ABS) {
+        if (!expect_params_count(context, *this, 1)) return error;
+        if (!expect_base_type(context, *this, params_types, 0, {BaseType::INTEGER, BaseType::BYTE, BaseType::REAL})) return error;
+        return std::pair(SymbolGroup::CONST, params_types[0].second);
+    }
+    if (name == BPType::LEN) {
+        if (!expect_params_count(context, *this, 1)) return error;
+        // if (!exprect_var(context, *this, params_types, 0)) return error; //Действительно ли это нужно?
+        if (!expect_type<ArrayType, ConstStringType>(context, *this, params_types, 0, "array type")) return error;
+        return std::pair(SymbolGroup::CONST, make_type<BuiltInType>(BaseType::INTEGER));
+    }
+    if (name == BPType::ORD) {
+        if (!expect_params_count(context, *this, 1)) return error;
+        if (!expect_base_type(context, *this, params_types, 0, {BaseType::CHAR, BaseType::BOOL, BaseType::SET})) return error;
+        return std::pair(SymbolGroup::CONST, make_type<BuiltInType>(BaseType::INTEGER));
+    }
+    if (name == BPType::INC || name == BPType::DEC) {
+        if (!expect_params_count(context, *this, {1,2})) return error;
+        if (!exprect_var(context, *this, params_types, 0)) return error;
+        if (!expect_base_type(context, *this, params_types, 0, BaseType::INTEGER)) return error;
+        if (params.size() == 2 && !expect_base_type(context, *this, params_types, 1, BaseType::INTEGER)) return error;
+        return std::pair(SymbolGroup::CONST, make_base_type(BaseType::VOID));
+    }
+    if (name == BPType::INCL || name ==BPType::EXCL) {
+        if (!expect_params_count(context, *this, 2)) return error;
+        if (!exprect_var(context, *this, params_types, 0)) return error;
+        if (!expect_base_type(context, *this, params_types, 0, BaseType::SET)) return error;
+        if (!expect_base_type(context, *this, params_types, 1, BaseType::INTEGER)) return error;
+        return std::pair(SymbolGroup::CONST, make_base_type(BaseType::VOID));
+    }
+    if (name == BPType::NEW) {
+        if (!expect_params_count(context, *this, 1)) return error;
+        if (!exprect_var(context, *this, params_types, 0)) return error;
+        if (!expect_type<PointerType>(context, *this, params_types, 0, "pointer type")) return error;
+        return std::pair(SymbolGroup::CONST, make_base_type(BaseType::VOID));
+    }
+    if (name == BPType::ASSERT) {
+        if (!expect_params_count(context, *this, 1)) return error;
+        if (!expect_base_type(context, *this, params_types, 0, BaseType::BOOL)) return error;
+        return std::pair(SymbolGroup::CONST, make_base_type(BaseType::VOID));
+    }
+    if (name == BPType::PACK || name == BPType::UNPK) {
+        if (!expect_params_count(context, *this, 1)) return error;
+        if (!exprect_var(context, *this, params_types, 0)) return error;
+        if (!expect_base_type(context, *this, params_types, 0, BaseType::REAL)) return error;
+        if (!expect_base_type(context, *this, params_types, 1, BaseType::INTEGER)) return error;
+        return std::pair(SymbolGroup::CONST, make_base_type(BaseType::VOID));
+    }
+    internal::compiler_error(__FUNCTION__);
+}
+
+Maybe<ValuePtr> BaseProcedure::eval_constant(Context& context) const {
+    std::vector<ValuePtr> params_values;
+    bool param_error = false;
+    for (auto param : params) {
+        auto param_value = param->eval_constant(context);
+        if (!param_value) param_error = true;
+        if (!param_error) params_values.push_back(param_value.value());
+    }
+    if (param_error) return error;
+    auto type = get_type(context);
+    if (!type) return error;
+    auto first_integer = params_values[0]->is<ConstInteger>();
+    auto second_integer = params_values[0]->is<ConstInteger>();
+    if (name == BPType::ABS) {
+        if (first_integer) return make_value<ConstInteger>(std::abs(first_integer->value));
+        auto first_real = params_values[0]->is<ConstReal>();
+        if (first_real) return make_value<ConstReal>(std::abs(first_real->value));
+    } else if (name == BPType::ODD && first_integer) {
+        return make_value<Boolean>(first_integer->value % 2 == 1);
+    } else if (name == BPType::LEN) {
+        auto first_string = params_values[0]->is<String>();
+        if (first_string) return make_value<ConstInteger>(first_string->value.size());
+    } else if (name == BPType::LSL && first_integer && second_integer) {
+        return make_value<ConstInteger>(first_integer->value * std::pow(2, second_integer->value));
+    } else if (name == BPType::ASR && first_integer && second_integer) {
+        auto rotr32 = [](uint n, int c) -> uint32_t {
+            const uint mask = (8*sizeof(n) - 1);
+            c &= mask;
+            return (n>>c) | (n<<( (-c)&mask ));
+        };
+        uint abs = std::abs(first_integer->value);
+        int sign = first_integer->value / abs;
+        return make_value<ConstInteger>(sign*rotr32(abs, second_integer->value));
+    } else if (name == BPType::FLOOR) {
+        auto first_real = params_values[0]->is<ConstReal>();
+        return make_value<ConstInteger>(std::floor(first_real->value));
+    } else if (name == BPType::FLT) {
+        return make_value<ConstReal>(first_integer->value);
+    } else if (name == BPType::ORD) {
+        auto first_char = params_values[0]->is<Char>();
+        if (first_char) return make_value<ConstInteger>(first_char->value);
+        auto first_bool = params_values[0]->is<Boolean>();
+        if (first_bool) return make_value<ConstInteger>(first_bool->value);
+        auto first_set = params_values[0]->is<ConstSet>();
+        // if (first_set) return make_value<ConstInteger>(first_set->value); //Как это? (Переделать ConstSet)
+    } else if (name == BPType::CHR) {
+        if (first_integer->value > 255 || first_integer->value < 0) {
+            context.messages.addErr(place, "Expected integer >= 0 and < 256");
+            return error;
+        }
+        return make_value<Char>(first_integer->value);
+    } else {
+        context.messages.addErr(place, "This built-in function is incalculable in a constant expression");
+        return error;
+    }
+    internal::compiler_error(__FUNCTION__);
+}
+
+Maybe<ValuePtr> BaseProcedure::apply_operator(Context& context, OpType oper, const Value& other) const {
+    auto this_value = eval_constant(context);
+    if (!this_value) return error;
+    return this_value.value()->apply_operator(context, oper, other);
+}
+
+BaseProcedure::BaseProcedure(std::string_view n, ExpList p) : name(read_bptype(n)), params(p) {}
+
 std::string Set::to_string() const {
     return fmt::format("{{{}}}", fmt::join(value, ", "));
 }
@@ -296,8 +555,8 @@ Set::Set(std::optional<std::vector<SetElement>> v) {
         value = *v;
 }
 
-inline Maybe<RecordType*> get_record_from_pointer(Type* some_type, Context& context, CodePlace place) {
-    Type* start_type = some_type;
+inline Maybe<const RecordType*> get_record_from_pointer(const Type* some_type, Context& context, CodePlace place) {
+    const Type* start_type = some_type;
     if (auto typeName = some_type->is<TypeName>(); typeName) {
         auto type = typeName->dereference(context);
         if (!type)
@@ -313,9 +572,12 @@ inline Maybe<RecordType*> get_record_from_pointer(Type* some_type, Context& cont
             some_type = type->get();
         }
     }
-    auto type = dynamic_cast<RecordType*>(some_type);
+    if (auto scalar_type = some_type->is<ScalarType>(); scalar_type) {
+        some_type = &scalar_type->get_type();
+    }
+    auto type = some_type->is<RecordType>();
     if (!type) {
-        context.messages.addErr(place, "Expected reord, found {}", start_type->to_string());
+        context.messages.addErr(place, "Expected record, pointer or scalar type, found {}", start_type->to_string());
         return error;
     }
     return type;
@@ -440,7 +702,7 @@ std::string ProcCall::to_string() const {
     }
 }
 
-Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_info(Context& context) const {
+Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_type(Context& context) const {
     if (!data.repair(context)) return error;
     auto ident = data.get().ident.get();
     auto params = data.get().params;
@@ -502,22 +764,9 @@ Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_info(Context& context) cons
     if (!compatible_types) {
         return error;
     }
-    TypePtr return_type;
+    TypePtr return_type = make_base_type(BaseType::VOID);
     if (funcType->params.rettype) return_type = *funcType->params.rettype;
     return std::pair(SymbolGroup::CONST, return_type);
-}
-
-Maybe<std::pair<SymbolGroup, TypePtr>> ProcCall::get_type(Context& context) const {
-    auto res = get_info(context);
-    if (!res)
-        return error;
-    auto [group, type] = *res;
-    if (type == nullptr) {
-        context.messages.addErr(place, "This procedure call has no type");
-        return error;
-    } else {
-        return *res;
-    }
 }
 
 Maybe<ValuePtr> ProcCall::eval_constant(Context& context) const {
@@ -725,10 +974,16 @@ std::string Term::to_string() const {
         return res + fmt::format("{}", first);
 }
 
-///! \todo
 Maybe<std::pair<SymbolGroup, TypePtr>> Term::get_type(Context& context) const {
-    if (!sign && !oper && !second) {
-        return first->get_type(context);
+    if (!oper && !second) {
+        auto res = first->get_type(context);
+        if (!res) return error;
+        auto [group, type] = res.value();
+        if (oper && !type->is<ConstInteger>() && !type->is<ConstReal>()) {
+            context.messages.addErr(place, "Expected numeric value for sign");
+            return error;
+        }
+        return res;
     } else if (oper && second) {
         auto firstRes = first->get_type(context);
         if (!firstRes) return error;
@@ -752,6 +1007,19 @@ Maybe<ValuePtr> Term::eval_constant(Context& context) const {
     } else {
         auto firstRes = first->eval_constant(context);
         if (!firstRes) return error;
+        if (sign) {
+            int int_sign = sign == '-' ? -1 : 1;
+            if (auto res_integer = firstRes.value()->is<ConstInteger>(); res_integer) {
+                res_integer->value *= int_sign;
+            } else if (auto res_real = firstRes.value()->is<ConstReal>(); res_real) {
+                res_real->value *= int_sign;
+            } else {
+                context.messages.addErr(place, "Expected numeric value for sign");
+                return error;
+            }
+        }
+        if (!second) return firstRes;
+        if (!oper) internal::compiler_error(__FUNCTION__);
         auto secondRes = second.value()->eval_constant(context);
         if (!secondRes) return error;
         return firstRes.value()->apply_operator(context, oper->value, *secondRes.value());
