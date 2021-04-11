@@ -18,6 +18,9 @@ public:
     bool can_overload(MessageContainer&, const ProcedureTable&) const override;
     bool overload(MessageContainer&, std::shared_ptr<ProcedureTable>) override;
     const SymbolTable& parent() const override { return *m_parent; }
+
+    bool analyze_code(MessageContainer& messages) const override;
+
     bool instance_compatible(MessageContainer& messages, bool with_messages, const ProcedureTable& instance) const;
 private:
     MultimethodTable() {}

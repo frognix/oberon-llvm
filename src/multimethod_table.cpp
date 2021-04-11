@@ -14,19 +14,8 @@ std::unique_ptr<MultimethodTable> MultimethodTable::parse(const nodes::Procedure
     table->m_name = proc.name.ident;
     table->m_parent = parent;
     table->m_type = proc.type;
-    auto context = nodes::Context(messages, *table);
-    auto func = [](auto ident, auto& context) {
-        if (ident.def) {
-            context.messages.addErr(ident.ident.place, "Cannot export local variable {}", ident.ident);
-            return false;
-        }
-        return true;
-    };
-    auto success = parseProcedureType(messages, *table, table->m_type);
+    auto success = parseProcedureType(messages, *table, proc);
     if (!success) return nullptr;
-    if (proc.body) {
-        SymbolContainer::parse(table->m_symbols, context, proc.body->decls, proc.body->statements, func);
-    }
     return table;
 }
 
@@ -82,6 +71,15 @@ bool MultimethodTable::overload(MessageContainer& messages, std::shared_ptr<Proc
     return false;
 }
 
+bool MultimethodTable::analyze_code(MessageContainer& messages) const {
+    auto context = nodes::Context(messages, *this);
+    bool success = get_symbols().analyze_code(context);
+    for (auto instance : m_instances) {
+        if (!instance->analyze_code(messages)) success = false;
+    }
+    return success;
+}
+
 std::unique_ptr<MultimethodInstanceTable> MultimethodInstanceTable::parse(const nodes::ProcedureDeclaration& proc,
                                                                           const SymbolTable* parent,
                                                                           MessageContainer& messages) {
@@ -96,17 +94,8 @@ std::unique_ptr<MultimethodInstanceTable> MultimethodInstanceTable::parse(const 
     table->m_name = proc.name.ident;
     table->m_parent = parent;
     table->m_type = proc.type;
-    auto context = nodes::Context(messages, *table);
-    auto func = [](auto ident, auto& context) {
-        if (ident.def) {
-            context.messages.addErr(ident.ident.place, "Cannot export local variable {}", ident.ident);
-            return false;
-        }
-        return true;
-    };
-    auto success = parseProcedureType(messages, *table, table->m_type);
+    auto success = parseProcedureType(messages, *table, proc);
     if (!success) return nullptr;
-    SymbolContainer::parse(table->m_symbols, context, proc.body->decls, proc.body->statements, func);
     return table;
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "message_container.hpp"
+#include "section_nodes.hpp"
 #include "symbol_container.hpp"
 #include "symbol_table.hpp"
 #include <memory>
@@ -66,4 +67,4 @@ public:
 std::unique_ptr<ProcedureTable> build_procedure_table(const nodes::ProcedureDeclaration& proc,
                                                        const SymbolTable* parent, MessageContainer& mm);
 
-bool parseProcedureType(MessageContainer& messages, SymbolTable& table, const nodes::ProcedureType& type);
+bool parseProcedureType(MessageContainer& messages, SymbolTable& table, const nodes::ProcedureDeclaration& type);

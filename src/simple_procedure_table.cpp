@@ -7,17 +7,8 @@ std::unique_ptr<SimpleProcedureTable> SimpleProcedureTable::parse(const nodes::P
     std::unique_ptr<SimpleProcedureTable> table(new SimpleProcedureTable());
     table->m_name = proc.name.ident;
     table->m_parent = parent;
-    auto context = nodes::Context(messages, *table);
-    auto func = [](auto ident, auto& context) {
-        if (ident.def) {
-            context.messages.addErr(ident.ident.place, "Cannot export local variable {}", ident.ident);
-            return false;
-        }
-        return true;
-    };
-    auto success = parseProcedureType(messages, *table, proc.type);
+    auto success = parseProcedureType(messages, *table, proc);
     if (!success) return nullptr;
-    SymbolContainer::parse(table->m_symbols, context, proc.body->decls, proc.body->statements, func);
     return table;
 }
 

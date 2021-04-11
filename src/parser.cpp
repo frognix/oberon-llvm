@@ -492,22 +492,23 @@ auto declarations_parser(ParserPtr<TypePtr> type, ParserPtr<ExpressionPtr> expre
 
     auto procedureType = construct<ProcedureType>(maybe(formalParameters));
 
-    auto procDeclBody2 = construct<ProcedureDeclarationBody>(
+    auto procDeclWithBody = construct<ProcedureDeclarationBody>(
         syntax_index<1, 2, 3>::select(symbol(';'), declarationSequenceLink.get(),
                                       maybe_list(syntax_index<1>::select(keyword("BEGIN"), statementSequence)),
                                       maybe(syntax_index<1>::select(keyword("RETURN"), expression)), keyword("END")));
 
-    auto procDeclBody = variant(syntax_index<0>::select(symbols(":="), symbols("0")), procDeclBody2);
+    auto procDeclBody = variant(syntax_index<0>::select(symbols(":="), symbols("0")), procDeclWithBody);
 
     auto procedureDeclBase = construct<ProcedureDeclaration>(syntax_index<1, 2, 3>::select(
         keyword("PROCEDURE"), identdef, construct<ProcedureType>(maybe(formalParameters)), procDeclBody));
 
     auto procedureDecl = node_either<Section>(parse_index<0>::tuple_select(
-      except(syntax_sequence(procedureDeclBase, maybe(ident)), "same ident", [](const auto& pair) {
+      except(syntax_sequence(procedureDeclBase, maybe(ident)), "same ident and rettype", [](const auto& pair) {
             auto& [proc, ident] = pair;
             if (proc.body) {
                 if (!ident) return false;
-                return proc.name.ident == ident.value();
+                return proc.name.ident == ident.value()
+                    && (!proc.type.params.rettype == !(proc.body && proc.body->ret));
             } else return true;
         })));
 
