@@ -9,7 +9,6 @@
 #include "type.hpp"
 #include "type_nodes.hpp"
 #include "symbol_table.hpp"
-#include <bits/stdint-uintn.h>
 #include <cmath>
 #include <initializer_list>
 #include <optional>
@@ -212,8 +211,8 @@ Maybe<ValuePtr> BooleanValue::apply_operator(Context& context, OpType oper, cons
 }
 
 std::string SetValue::to_string() const {
-    std::vector<uint> set_values;
-    for (uint i = 0; i < values.size(); ++i) {
+    std::vector<unsigned int> set_values;
+    for (unsigned int i = 0; i < values.size(); ++i) {
         if (values.test(i)) set_values.push_back(i);
     }
     return fmt::format("{{{}}}", fmt::join(set_values, ", "));
@@ -487,12 +486,12 @@ Maybe<ValuePtr> BaseProcedureValue::eval_constant(Context& context) const {
         } else if (name == BPType::ASR && first_integer && second_integer) {
             return make_value<IntegerValue>(first_integer->value / std::pow(2, second_integer->value));
         } else if (name == BPType::ROR && first_integer && second_integer) {
-            auto rotr32 = [](uint n, int c) -> uint32_t {
-                const uint mask = (8*sizeof(n) - 1);
+            auto rotr32 = [](unsigned int n, int c) -> uint32_t {
+                const unsigned int mask = (8*sizeof(n) - 1);
                 c &= mask;
                 return (n>>c) | (n<<( (-c)&mask ));
             };
-            uint abs = std::abs(first_integer->value);
+            unsigned int abs = std::abs(first_integer->value);
             int sign = first_integer->value / abs;
             return make_value<IntegerValue>(sign*rotr32(abs, second_integer->value));
         }
